@@ -51,7 +51,7 @@ def calc_loss(model, inp, target, custom_loss, should_preproc=True):
         inp = model.preproc(inp)
     return custom_loss(model.model, inp, target)
 
-def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOMSEED, overwrite_pckl,
+def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOMSEED, overwrite_pckl,
                                  use_dataset_preproc, step_size, NOISE_SCALE, ITERATIONS, NUMREPITER,
                                  OVERRIDE_SAVE, MODEL_DIRECTORY):
     if MODEL_DIRECTORY is None:
@@ -479,7 +479,7 @@ def main(raw_args=None):
     OVERRIDE_SAVE = args.OVERRIDE_SAVE
     MODEL_DIRECTORY = args.DIRECTORY
 
-    run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOMSEED, overwrite_pckl,
+    run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOMSEED, overwrite_pckl,
                                  use_dataset_preproc, step_size, NOISE_SCALE, ITERATIONS, NUMREPITER,
                                  OVERRIDE_SAVE, MODEL_DIRECTORY)
 

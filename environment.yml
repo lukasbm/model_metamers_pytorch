@@ -1,0 +1,23 @@
+name: feathers_model_metamers
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - setuptools
+  - pkg-config
+  - pip
+  - compilers
+  - libjpeg-turbo
+  - opencv
+  - pylint
+  - cudatoolkit=11.8.0
+  - ffmpeg
+  - pip:
+      - -r requirements.txt
+      - ffcv
+      - h5py
+      - resampy
+      - cox
+      - tensorboardX
+      - git+https://github.com/jenellefeather/chcochleagram.git

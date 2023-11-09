@@ -25,13 +25,13 @@ def download_extract_remove(url, extract_location):
     os.remove(temp_file_location)
 
 # Download the visual checkpoints (~5.5GB)
-url_visual_checkpoints = 'https://mcdermottlab.mit.edu//jfeather/model_metamers_assets/pytorch_metamers_visual_model_checkpoints.tar'
-download_extract_remove(url_visual_checkpoints, VISUAL_CHECKPOINTS_LOCATION)
+#url_visual_checkpoints = 'https://mcdermottlab.mit.edu//jfeather/model_metamers_assets/pytorch_metamers_visual_model_checkpoints.tar'
+#download_extract_remove(url_visual_checkpoints, VISUAL_CHECKPOINTS_LOCATION)
 
 # Download the audio checkpoints (~9.4G)
-url_audio_checkpoints = 'https://mcdermottlab.mit.edu//jfeather/model_metamers_assets/pytorch_metamers_audio_model_checkpoints.tar'
+# url_audio_checkpoints = 'https://mcdermottlab.mit.edu//jfeather/model_metamers_assets/pytorch_metamers_audio_model_checkpoints.tar'
 
-download_extract_remove(url_audio_checkpoints, AUDIO_CHECKPOINTS_LOCATION)
+#download_extract_remove(url_audio_checkpoints, AUDIO_CHECKPOINTS_LOCATION)
 
 # Download the assets folder (366M)
 url_assets_folder = 'https://mcdermottlab.mit.edu//jfeather/model_metamers_assets/pytorch_metamers_assets_folder.tar'

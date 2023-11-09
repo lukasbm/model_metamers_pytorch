@@ -1,0 +1,57 @@
+# pytorch libs
+torch
+torchvision
+torchaudio
+# pytorch nightly https://pip.pypa.io/en/stable/reference/requirements-file-format/
+# --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121
+
+# pytorch lightning (also includes fabric)
+pytorch_lightning  # is the same a "lightning" pypi package
+torchmetrics
+
+# huggingface libs
+transformers
+huggingface_hub[cli,torch]  # needed for the cli
+timm
+
+# ml libs
+onnx
+pandas
+numpy<1.24  # need to lock for compatibility
+matplotlib
+scikit-learn
+numba
+
+# nvidia
+nvidia-ml-py3
+cupy-cuda11x
+
+# utilities
+tqdm
+knockknock
+python-dotenv
+ffmpeg
+simple-parsing
+safetensors  # required by timm, but not a explicit dependency
+
+# logging
+tensorboard
+torch-tb-profiler
+wandb
+
+# notebooks
+import-ipynb
+ipynb
+jupyter
+ipykernel
+
+# coding tools
+# NOTE: all of these are replaced by trunk (trunk.io)
+# hacking   # installs compatible version of flake8, black and isort
+# flake8  # python linter
+# black  # format python code
+# isort  # format imports
+# pylint # or flake8
+# pylance language server not listed here, has to installed seperately
+# bandit  # security checker
+
