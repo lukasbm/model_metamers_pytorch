@@ -1,12 +1,11 @@
-import torch.utils.data as data
-from torch.utils.data import Dataset
-from torchvision import transforms
-
-from PIL import Image
-
 import os
 import os.path
 import sys
+
+import torch.utils.data as data
+from PIL import Image
+from torch.utils.data import Dataset
+from torchvision import transforms
 
 
 def has_file_allowed_extension(filename, extensions):
@@ -89,8 +88,9 @@ class DatasetFolder(data.Dataset):
 
         samples = make_dataset(root, class_to_idx, extensions)
         if len(samples) == 0:
-            raise(RuntimeError("Found 0 files in subfolders of: " + root + "\n"
-                               "Supported extensions are: " + ",".join(extensions)))
+            raise (RuntimeError("Found 0 files in subfolders of: " + root + "\n"
+                                                                            "Supported extensions are: " + ",".join(
+                extensions)))
 
         self.root = root
         self.loader = loader
@@ -208,6 +208,7 @@ class ImageFolder(DatasetFolder):
         class_to_idx (dict): Dict with items (class_name, class_index).
         imgs (list): List of (image path, class_index) tuples
     """
+
     def __init__(self, root, transform=None, target_transform=None,
                  loader=default_loader, label_mapping=None):
         super(ImageFolder, self).__init__(root, loader, IMG_EXTENSIONS,
@@ -215,6 +216,7 @@ class ImageFolder(DatasetFolder):
                                           target_transform=target_transform,
                                           label_mapping=label_mapping)
         self.imgs = self.samples
+
 
 class TensorDataset(Dataset):
     """Dataset wrapping tensors.

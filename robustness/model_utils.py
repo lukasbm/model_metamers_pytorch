@@ -1,8 +1,11 @@
-import torch as ch
-import dill
 import os
-from .tools import helpers, constants
+
+import dill
+import torch as ch
+
 from .attacker import AttackerModel
+from .tools import constants
+
 
 class FeatureExtractor(ch.nn.Module):
     '''
@@ -19,6 +22,7 @@ class FeatureExtractor(ch.nn.Module):
             corresponding to the functions in `layers` (in the order that the
             functions were passed in the list).
     '''
+
     def __init__(self, submod, layers):
         # layers must be in order
         super(FeatureExtractor, self).__init__()
@@ -28,6 +32,7 @@ class FeatureExtractor(ch.nn.Module):
 
         for layer_func in layers:
             layer = layer_func(self.submod)
+
             def hook(module, _, output):
                 module.register_buffer('activations', output)
 
@@ -41,11 +46,12 @@ class FeatureExtractor(ch.nn.Module):
         activs = [layer_fn(self.submod).activations for layer_fn in self.layers]
         return [out] + activs
 
+
 def make_and_restore_model(*_, arch, dataset, resume_path=None,
-         parallel=True, pytorch_pretrained=False, strict=True,
-         remap_checkpoint_keys={}, append_name_front_keys=None,
-         change_prefix_checkpoint={},
-         arch_kwargs={}):
+                           parallel=True, pytorch_pretrained=False, strict=True,
+                           remap_checkpoint_keys={}, append_name_front_keys=None,
+                           change_prefix_checkpoint={},
+                           arch_kwargs={}):
     """
     Makes a model and (optionally) restores it from a checkpoint.
 
@@ -72,7 +78,7 @@ def make_and_restore_model(*_, arch, dataset, resume_path=None,
         A tuple consisting of the model (possibly loaded with checkpoint), and the checkpoint itself
     """
     classifier_model = dataset.get_model(arch, pytorch_pretrained, arch_kwargs) if \
-                            isinstance(arch, str) else arch
+        isinstance(arch, str) else arch
 
     model = AttackerModel(classifier_model, dataset)
 
@@ -82,7 +88,7 @@ def make_and_restore_model(*_, arch, dataset, resume_path=None,
         if os.path.isfile(resume_path):
             print("=> loading checkpoint '{}'".format(resume_path))
             checkpoint = ch.load(resume_path, pickle_module=dill)
-            
+
             # Makes us able to load models saved with legacy versions
             state_dict_path = 'model'
             if not ('model' in checkpoint):
@@ -91,35 +97,36 @@ def make_and_restore_model(*_, arch, dataset, resume_path=None,
             try:
                 sd = checkpoint[state_dict_path]
             except:
-                print('Missing state dict key %s from checkpoint. Assuming checkpoint is simply the state dictionary and we do not need a key'%state_dict_path)
+                print(
+                    'Missing state dict key %s from checkpoint. Assuming checkpoint is simply the state dictionary and we do not need a key' % state_dict_path)
                 sd = checkpoint
 
             if append_name_front_keys is not None:
                 new_sd = {}
                 for key_idx in range(len(append_name_front_keys)):
-                    sd_temp = {'%s%s'%(append_name_front_keys[key_idx], k):v for k,v in sd.items()}
+                    sd_temp = {'%s%s' % (append_name_front_keys[key_idx], k): v for k, v in sd.items()}
                     new_sd.update(sd_temp)
                 sd = new_sd
 
-            sd = {k[len('module.'):]:v for k,v in sd.items()}
+            sd = {k[len('module.'):]: v for k, v in sd.items()}
 
             # The following blocks are used in specific cases where we are loading models that are trained with different
             # module names than are used in this library.
 
             # Load models if the keys changed slightly
             for old_key, new_key in remap_checkpoint_keys.items():
-                print('mapping %s to %s'%(old_key, new_key))
-                if type(new_key) is list: # If there are multiple keys that should be the same value (ie with attacker model)
+                print('mapping %s to %s' % (old_key, new_key))
+                if type(new_key) is list:  # If there are multiple keys that should be the same value (ie with attacker model)
                     for new_key_temp in new_key:
                         sd[new_key_temp] = sd[old_key]
                     del sd[old_key]
                 else:
-                    sd[new_key]=sd.pop(old_key)
+                    sd[new_key] = sd.pop(old_key)
             # Swaps out a prefix
             for old_prefix, new_prefix in change_prefix_checkpoint.items():
                 sd_keys_temp = list(sd.keys())
                 for sd_key in sd_keys_temp:
-                    if type(old_prefix)==int: # If we need to add prefix to EVERYTHING
+                    if type(old_prefix) == int:  # If we need to add prefix to EVERYTHING
                         sd[new_prefix + sd_key] = sd[sd_key]
                         del sd[sd_key]
                     else:
@@ -131,13 +138,15 @@ def make_and_restore_model(*_, arch, dataset, resume_path=None,
             if parallel:
                 model = ch.nn.DataParallel(model)
             model = model.cuda()
- 
-            print("=> loaded checkpoint '{}' (epoch {})".format(resume_path, checkpoint.get('epoch', 'epoch number not found')))
+
+            print("=> loaded checkpoint '{}' (epoch {})".format(resume_path,
+                                                                checkpoint.get('epoch', 'epoch number not found')))
         else:
             error_msg = "=> no checkpoint found at '{}'".format(resume_path)
             raise ValueError(error_msg)
 
     return model, checkpoint
+
 
 def model_dataset_from_store(s, overwrite_params={}, which='last'):
     '''
@@ -153,11 +162,11 @@ def model_dataset_from_store(s, overwrite_params={}, which='last'):
     df = s['metadata'].df
 
     args = df.to_dict()
-    args = {k:v[0] for k,v in args.items()}
+    args = {k: v[0] for k, v in args.items()}
     fns = [lambda x: m.get_object(x), lambda x: m.get_pickle(x)]
     conds = [lambda x: m.schema[x] == s.OBJECT, lambda x: m.schema[x] == s.PICKLE]
     for fn, cond in zip(fns, conds):
-        args = {k:(fn(v) if cond(k) else v) for k,v in args.items()}
+        args = {k: (fn(v) if cond(k) else v) for k, v in args.items()}
 
     args.update(overwrite_params)
     args = Parameters(args)

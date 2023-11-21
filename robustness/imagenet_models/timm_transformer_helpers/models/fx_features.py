@@ -10,6 +10,7 @@ from .features import _get_feature_info
 
 try:
     from torchvision.models.feature_extraction import create_feature_extractor as _create_feature_extractor
+
     has_fx_feature_extraction = True
 except ImportError:
     has_fx_feature_extraction = False
@@ -30,6 +31,7 @@ _leaf_modules = {
 
 try:
     from .layers import InplaceAbn
+
     _leaf_modules.add(InplaceAbn)
 except ImportError:
     pass
@@ -66,6 +68,7 @@ def create_feature_extractor(model: nn.Module, return_nodes: Union[Dict[str, str
 class FeatureGraphNet(nn.Module):
     """ A FX Graph based feature extractor that works with the model feature_info metadata
     """
+
     def __init__(self, model, out_indices, out_map=None):
         super().__init__()
         assert has_fx_feature_extraction, 'Please update to PyTorch 1.10+, torchvision 0.11+ for FX feature extraction'
@@ -94,6 +97,7 @@ class GraphExtractNet(nn.Module):
         return_nodes: node names to return features from (dict or list)
         squeeze_out: if only one output, and output in list format, flatten to single tensor
     """
+
     def __init__(self, model, return_nodes: Union[Dict[str, str], List[str]], squeeze_out: bool = True):
         super().__init__()
         self.squeeze_out = squeeze_out

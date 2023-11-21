@@ -1,9 +1,10 @@
-import h5py
-import torch
 import glob
-from . import audio_transforms
 import pickle
+
+import h5py
 import numpy as np
+import torch
+
 
 class jsinV3_precombined_all_signals(torch.utils.data.ConcatDataset):
     # Makes a dataset using pre-paired speech and audioset background sounds
@@ -32,7 +33,7 @@ class jsinV3_precombined_all_signals(torch.utils.data.ConcatDataset):
         """
         Loads the mapping between the word IDX and human readable word map.
         """
-        word_and_speaker_encodings = pickle.load( open( "word_and_speaker_encodings_jsinv3.pckl", "rb" ))
+        word_and_speaker_encodings = pickle.load(open("word_and_speaker_encodings_jsinv3.pckl", "rb"))
         class_map = word_and_speaker_encodings['word_idx_to_word']
         return class_map
 
@@ -53,7 +54,7 @@ class jsinV3_precombined(torch.utils.data.ConcatDataset):
         if train:
             self.all_hdf5_files = glob.glob(root + '/train_*/' + self.hdf5_glob)
         else:
-            self.all_hdf5_files = glob.glob(root + '/valid_*/' + self.hdf5_glob)[0:eval_max] # Just get one set of them
+            self.all_hdf5_files = glob.glob(root + '/valid_*/' + self.hdf5_glob)[0:eval_max]  # Just get one set of them
 
         self.datasets = [H5Dataset(h5_file, transform, self.target_keys) for h5_file in self.all_hdf5_files]
 
@@ -63,7 +64,7 @@ class jsinV3_precombined(torch.utils.data.ConcatDataset):
         """
         Loads the mapping between the word IDX and human readable word map. 
         """
-        word_and_speaker_encodings = pickle.load( open( "word_and_speaker_encodings_jsinv3.pckl", "rb" )) 
+        word_and_speaker_encodings = pickle.load(open("word_and_speaker_encodings_jsinv3.pckl", "rb"))
         class_map = word_and_speaker_encodings['word_idx_to_word']
         return class_map
 
@@ -98,8 +99,8 @@ class H5Dataset(torch.utils.data.Dataset):
               specified by target_keys. 
         """
         if self.dataset is None:
-            self.dataset = h5py.File(self.file_path, 'r', swmr=True)# ["ndarray_data"]["signal"]
-      
+            self.dataset = h5py.File(self.file_path, 'r', swmr=True)  # ["ndarray_data"]["signal"]
+
         # Before transforms, set the signal and the noise 
         signal = self.dataset['sources']['signal']['signal'][index]
         noise = self.dataset['sources']['noise']['signal'][index]

@@ -29,6 +29,7 @@ class StdConv2d(nn.Conv2d):
     Paper: `Micro-Batch Training with Batch-Channel Normalization and Weight Standardization` -
         https://arxiv.org/abs/1903.10520v2
     """
+
     def __init__(
             self, in_channel, out_channels, kernel_size, stride=1, padding=None,
             dilation=1, groups=1, bias=False, eps=1e-6):
@@ -53,6 +54,7 @@ class StdConv2dSame(nn.Conv2d):
     Paper: `Micro-Batch Training with Batch-Channel Normalization and Weight Standardization` -
         https://arxiv.org/abs/1903.10520v2
     """
+
     def __init__(
             self, in_channel, out_channels, kernel_size, stride=1, padding='SAME',
             dilation=1, groups=1, bias=False, eps=1e-6):

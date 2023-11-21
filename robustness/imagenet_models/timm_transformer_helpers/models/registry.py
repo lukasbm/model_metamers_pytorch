@@ -2,9 +2,9 @@
 Hacked together by / Copyright 2020 Ross Wightman
 """
 
-import sys
-import re
 import fnmatch
+import re
+import sys
 from collections import defaultdict
 from copy import deepcopy
 
@@ -41,9 +41,9 @@ def register_model(fn):
         # entrypoints or non-matching combos
         cfg = mod.default_cfgs[model_name]
         has_valid_pretrained = (
-            ('url' in cfg and 'http' in cfg['url']) or
-            ('file' in cfg and cfg['file']) or
-            ('hf_hub_id' in cfg and cfg['hf_hub_id'])
+                ('url' in cfg and 'http' in cfg['url']) or
+                ('file' in cfg and cfg['file']) or
+                ('hf_hub_id' in cfg and cfg['hf_hub_id'])
         )
         _model_pretrained_cfgs[model_name] = mod.default_cfgs[model_name]
     if has_valid_pretrained:

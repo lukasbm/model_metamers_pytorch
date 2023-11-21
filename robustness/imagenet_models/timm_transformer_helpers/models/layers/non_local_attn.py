@@ -20,7 +20,7 @@ class NonLocalAttn(nn.Module):
     Their NonLocal impl inspired by https://github.com/facebookresearch/video-nonlocal-net.
     """
 
-    def __init__(self, in_channels, use_scale=True,  rd_ratio=1/8, rd_channels=None, rd_divisor=8, **kwargs):
+    def __init__(self, in_channels, use_scale=True, rd_ratio=1 / 8, rd_channels=None, rd_divisor=8, **kwargs):
         super(NonLocalAttn, self).__init__()
         if rd_channels is None:
             rd_channels = make_divisible(in_channels * rd_ratio, divisor=rd_divisor)

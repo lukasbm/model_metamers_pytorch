@@ -13,8 +13,8 @@ Hacked together by / Copyright 2021 Ross Wightman
 """
 import math
 
-from torch import nn as nn
 import torch.nn.functional as F
+from torch import nn as nn
 
 from .create_act import create_act_layer, get_act_layer
 from .create_conv2d import create_conv2d
@@ -25,9 +25,10 @@ from .mlp import ConvMlp
 class GatherExcite(nn.Module):
     """ Gather-Excite Attention Module
     """
+
     def __init__(
             self, channels, feat_size=None, extra_params=False, extent=0, use_mlp=True,
-            rd_ratio=1./16, rd_channels=None,  rd_divisor=1, add_maxpool=False,
+            rd_ratio=1. / 16, rd_channels=None, rd_divisor=1, add_maxpool=False,
             act_layer=nn.ReLU, norm_layer=nn.BatchNorm2d, gate_layer='sigmoid'):
         super(GatherExcite, self).__init__()
         self.add_maxpool = add_maxpool

@@ -27,7 +27,6 @@ from typing import Sequence, Union
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from .create_act import create_act_layer
 from .trace_utils import _assert
@@ -41,6 +40,8 @@ def instance_std(x, eps: float = 1e-5):
 def instance_std_tpu(x, eps: float = 1e-5):
     std = manual_var(x, dim=(2, 3)).add(eps).sqrt()
     return std.expand(x.shape)
+
+
 # instance_std = instance_std_tpu
 
 
@@ -84,7 +85,9 @@ def group_std_tpu(x, groups: int = 32, eps: float = 1e-5, diff_sqm: bool = False
         x = x.reshape(B, groups, C // groups, H, W)
         var = manual_var(x, dim=(2, 3, 4), diff_sqm=diff_sqm)
     return var.add(eps).sqrt().expand(x.shape).reshape(B, C, H, W)
-#group_std = group_std_tpu  # FIXME TPU temporary
+
+
+# group_std = group_std_tpu  # FIXME TPU temporary
 
 
 def group_rms(x, groups: int = 32, eps: float = 1e-5):

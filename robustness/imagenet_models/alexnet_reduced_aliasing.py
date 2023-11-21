@@ -1,4 +1,5 @@
 import torch.nn as nn
+
 try:
     from torchvision.models.utils import load_state_dict_from_url
 except:
@@ -42,7 +43,7 @@ class AlexNet_reduced_aliasing(nn.Module):
         self.fake_relu_dict = nn.ModuleDict()
         for layer_name in self.featurenames:
             if 'relu' in layer_name:
-                self.fake_relu_dict[layer_name] =  FakeReLUM()
+                self.fake_relu_dict[layer_name] = FakeReLUM()
 
         # If the input shape is the original alexnet shape of 224x224 this 
         # operation does nothing. 
@@ -54,7 +55,7 @@ class AlexNet_reduced_aliasing(nn.Module):
             nn.Dropout(),
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=False),
-            nn.Linear(4096, num_classes)    
+            nn.Linear(4096, num_classes)
         )
         self.classifier_names = ['dropout0', 'fc0', 'fc0_relu',
                                  'dropout1', 'fc1', 'fc1_relu',
@@ -87,11 +88,12 @@ class AlexNet_reduced_aliasing(nn.Module):
         all_outputs['final'] = all_outputs['fctop']
 
         if with_latent and no_relu:
-            raise ValueError('no_relu is deprecated') 
+            raise ValueError('no_relu is deprecated')
             return x, None, all_outputs
         if with_latent:
             return x, None, all_outputs
         return x
+
 
 def alexnet_reduced_aliasing(pretrained=False, progress=True, **kwargs):
     r"""AlexNet model architecture from the

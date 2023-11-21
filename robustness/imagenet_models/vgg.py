@@ -1,16 +1,15 @@
 import torch.nn as nn
-import torch
+
 try:
     from torchvision.models.utils import load_state_dict_from_url
 except:
     from torch.hub import load_state_dict_from_url
-from .custom_modules import FakeReLUM, SequentialWithArgs, FakeReLU
+from .custom_modules import FakeReLUM, FakeReLU
 
 __all__ = [
     'VGG', 'vgg11', 'vgg11_bn', 'vgg13', 'vgg13_bn', 'vgg16', 'vgg16_bn',
     'vgg19_bn', 'vgg19',
 ]
-
 
 model_urls = {
     'vgg11': 'https://download.pytorch.org/models/vgg11-bbd30ac9.pth',
@@ -22,6 +21,7 @@ model_urls = {
     'vgg16_bn': 'https://download.pytorch.org/models/vgg16_bn-6c64b313.pth',
     'vgg19_bn': 'https://download.pytorch.org/models/vgg19_bn-c79401a0.pth',
 }
+
 
 class VGG(nn.Module):
     def __init__(self, features_and_names, num_classes=1000, init_weights=True):
@@ -39,7 +39,7 @@ class VGG(nn.Module):
             nn.Linear(4096, num_classes)
         )
         self.classifier_names = ['fc_0', 'fc_relu_0', 'dropout_0',
-                                 'fc_1', 'fc_relu_1', 'dropout_1', 
+                                 'fc_1', 'fc_relu_1', 'dropout_1',
                                  'fctop']
         self.last_relu = nn.ReLU()
         self.last_relu_fake = FakeReLUM()
@@ -47,7 +47,7 @@ class VGG(nn.Module):
             self._initialize_weights()
 
     def forward(self, x, with_latent=False, fake_relu=False, no_relu=False):
-        del no_relu # does not do anything for this network
+        del no_relu  # does not do anything for this network
         all_outputs = {}
         all_outputs['input_after_preproc'] = x
         for layer, name in list(zip(self.features, self.feature_names)):
@@ -78,7 +78,7 @@ class VGG(nn.Module):
         for layer, name in list(zip(self.classifier[-2:], self.classifier_names[-2:])):
             x = layer(x)
             all_outputs[name] = x
-        x_out = x 
+        x_out = x
         all_outputs['final'] = all_outputs['fctop']
 
         if with_latent:
@@ -98,33 +98,34 @@ class VGG(nn.Module):
                 nn.init.normal_(m.weight, 0, 0.01)
                 nn.init.constant_(m.bias, 0)
 
+
 def make_layers(cfg, batch_norm=False):
     layers = []
     layer_names = []
-    conv_block_count=0
-    conv_inner_count=0
-    pool_count=0
+    conv_block_count = 0
+    conv_inner_count = 0
+    pool_count = 0
     in_channels = 3
     for v in cfg:
         if v == 'M':
             layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
-            layer_names.append('maxpool_%d'%pool_count)
-            conv_block_count+=1 # increase conv block count
-            conv_inner_count=0 # reset inner conv count
-            pool_count+=1 # increase pooling count
+            layer_names.append('maxpool_%d' % pool_count)
+            conv_block_count += 1  # increase conv block count
+            conv_inner_count = 0  # reset inner conv count
+            pool_count += 1  # increase pooling count
         else:
             conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
             if batch_norm:
                 layers += [conv2d, nn.BatchNorm2d(v), nn.ReLU()]
-                layer_names += ['conv2d_%d_%d'%(conv_block_count, conv_inner_count),
-                                'batchnorm_%d_%d'%(conv_block_count, conv_inner_count),
-                                'conv_relu_%d_%d'%(conv_block_count, conv_inner_count)]
+                layer_names += ['conv2d_%d_%d' % (conv_block_count, conv_inner_count),
+                                'batchnorm_%d_%d' % (conv_block_count, conv_inner_count),
+                                'conv_relu_%d_%d' % (conv_block_count, conv_inner_count)]
             else:
                 layers += [conv2d, nn.ReLU()]
-                layer_names += ['conv2d_%d_%d'%(conv_block_count, conv_inner_count),
-                                'conv_relu_%d_%d'%(conv_block_count, conv_inner_count)]
+                layer_names += ['conv2d_%d_%d' % (conv_block_count, conv_inner_count),
+                                'conv_relu_%d_%d' % (conv_block_count, conv_inner_count)]
             in_channels = v
-            conv_inner_count+=1
+            conv_inner_count += 1
     return nn.Sequential(*layers), layer_names
 
 

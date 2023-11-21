@@ -19,12 +19,12 @@ Hacked together by / Copyright 2021 Ross Wightman
 from typing import List
 
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
 from .helpers import make_divisible
-from .weight_init import trunc_normal_
 from .trace_utils import _assert
+from .weight_init import trunc_normal_
 
 
 def rel_logits_1d(q, rel_k, permute_mask: List[int]):
@@ -64,6 +64,7 @@ class PosEmbedRel(nn.Module):
     Originally from: `Attention Augmented Convolutional Networks` - https://arxiv.org/abs/1904.09925
 
     """
+
     def __init__(self, block_size, win_size, dim_head, scale):
         """
         Args:
@@ -122,6 +123,7 @@ class HaloAttn(nn.Module):
         avg_down (bool): use average pool downsample instead of strided query blocks
         scale_pos_embed (bool): scale the position embedding as well as Q @ K
     """
+
     def __init__(
             self, dim, dim_out=None, feat_size=None, stride=1, num_heads=8, dim_head=None, block_size=8, halo_size=3,
             qk_ratio=1.0, qkv_bias=False, avg_down=False, scale_pos_embed=False):

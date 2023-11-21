@@ -33,6 +33,7 @@ class RadixSoftmax(nn.Module):
 class SplitAttn(nn.Module):
     """Split-Attention (aka Splat)
     """
+
     def __init__(self, in_channels, out_channels=None, kernel_size=3, stride=1, padding=None,
                  dilation=1, groups=1, bias=False, radix=2, rd_ratio=0.25, rd_channels=None, rd_divisor=8,
                  act_layer=nn.ReLU, norm_layer=None, drop_layer=None, **kwargs):

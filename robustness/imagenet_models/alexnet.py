@@ -1,4 +1,5 @@
 import torch.nn as nn
+
 try:
     from torchvision.models.utils import load_state_dict_from_url
 except:
@@ -10,6 +11,7 @@ __all__ = ['AlexNet', 'alexnet']
 model_urls = {
     'alexnet': 'https://download.pytorch.org/models/alexnet-owt-4df8aa71.pth',
 }
+
 
 class AlexNet(nn.Module):
     def __init__(self, num_classes=1000):
@@ -40,7 +42,7 @@ class AlexNet(nn.Module):
         self.fake_relu_dict = nn.ModuleDict()
         for layer_name in self.featurenames:
             if 'relu' in layer_name:
-                self.fake_relu_dict[layer_name] =  FakeReLUM()
+                self.fake_relu_dict[layer_name] = FakeReLUM()
 
         self.avgpool = nn.AdaptiveAvgPool2d((6, 6))
         self.classifier = nn.Sequential(
@@ -50,7 +52,7 @@ class AlexNet(nn.Module):
             nn.Dropout(),
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=False),
-            nn.Linear(4096, num_classes)    
+            nn.Linear(4096, num_classes)
         )
         self.classifier_names = ['dropout0', 'fc0', 'fc0_relu',
                                  'dropout1', 'fc1', 'fc1_relu',
@@ -83,11 +85,12 @@ class AlexNet(nn.Module):
         all_outputs['final'] = all_outputs['fctop']
 
         if with_latent and no_relu:
-            raise ValueError('no_relu is deprecated') 
+            raise ValueError('no_relu is deprecated')
             return x, None, all_outputs
         if with_latent:
             return x, None, all_outputs
         return x
+
 
 def alexnet(pretrained=False, progress=True, **kwargs):
     r"""AlexNet model architecture from the

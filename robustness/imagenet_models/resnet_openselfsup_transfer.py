@@ -1,9 +1,9 @@
-import torch
 import torch.nn as nn
-import torch.utils.model_zoo as model_zoo
+
 from .custom_modules import SequentialWithArgs, FakeReLU
 
-__all__ = ['ResNet', 'resnet18_openselfsup_transfer', 'resnet34_openselfsup_transfer', 'resnet50_openselfsup_transfer', 'resnet101_openselfsup_transfer',
+__all__ = ['ResNet', 'resnet18_openselfsup_transfer', 'resnet34_openselfsup_transfer', 'resnet50_openselfsup_transfer',
+           'resnet101_openselfsup_transfer',
            'resnet152_openselfsup_transfer']
 
 model_urls = {
@@ -54,6 +54,7 @@ class BasicBlock(nn.Module):
             return FakeReLU.apply(out)
         return self.relu(out)
 
+
 class Bottleneck(nn.Module):
     expansion = 4
 
@@ -93,6 +94,7 @@ class Bottleneck(nn.Module):
 
         return self.relu(out)
 
+
 class ResNet(nn.Module):
     def __init__(self, block, layers, num_classes=1000, zero_init_residual=False):
         super(ResNet, self).__init__()
@@ -120,7 +122,7 @@ class ResNet(nn.Module):
                 nn.init.normal_(m.weight, 0, 0.01)
                 if hasattr(m, 'bias'):
                     nn.init.constant_(m.bias, 0)
-                
+
         # Zero-initialize the last BN in each residual branch,
         # so that the residual branch starts with zeros, and each residual block behaves like an identity.
         # This improves the model by 0.2~0.3% according to https://arxiv.org/abs/1706.02677
@@ -148,7 +150,7 @@ class ResNet(nn.Module):
         return SequentialWithArgs(*layers)
 
     def forward(self, x, with_latent=False, fake_relu=False, no_relu=False):
-        del no_relu # no longer does anything in this code
+        del no_relu  # no longer does anything in this code
         all_outputs = {}
         all_outputs['input_after_preproc'] = x
         x = self.conv1(x)
@@ -190,6 +192,7 @@ class ResNet(nn.Module):
             return final, pre_out, all_outputs
         return final
 
+
 def resnet18_openselfsup_transfer(pretrained=False, **kwargs):
     """Constructs a ResNet-18 model.
 
@@ -223,9 +226,9 @@ def resnet50_openselfsup_transfer(pretrained=False, **kwargs):
             param.requires_grad = True
         else:
             param.requires_grad = False
-        
+
     for name, param in model.named_parameters():
-        print('%s: %s'%(name, param.requires_grad))
+        print('%s: %s' % (name, param.requires_grad))
     return model
 
 

@@ -13,10 +13,10 @@ from torch.nn import functional as F
 
 try:
     from apex.normalization.fused_layer_norm import fused_layer_norm_affine
+
     has_apex = True
 except ImportError:
     has_apex = False
-
 
 # fast (ie lower precision LN) can be disabled with this flag if issues crop up
 _USE_FAST_NORM = False  # defaulting to False for now
@@ -32,11 +32,11 @@ def set_fast_norm(enable=True):
 
 
 def fast_group_norm(
-    x: torch.Tensor,
-    num_groups: int,
-    weight: Optional[torch.Tensor] = None,
-    bias: Optional[torch.Tensor] = None,
-    eps: float = 1e-5
+        x: torch.Tensor,
+        num_groups: int,
+        weight: Optional[torch.Tensor] = None,
+        bias: Optional[torch.Tensor] = None,
+        eps: float = 1e-5
 ) -> torch.Tensor:
     if torch.jit.is_scripting():
         # currently cannot use is_autocast_enabled within torchscript
@@ -54,11 +54,11 @@ def fast_group_norm(
 
 
 def fast_layer_norm(
-    x: torch.Tensor,
-    normalized_shape: List[int],
-    weight: Optional[torch.Tensor] = None,
-    bias: Optional[torch.Tensor] = None,
-    eps: float = 1e-5
+        x: torch.Tensor,
+        normalized_shape: List[int],
+        weight: Optional[torch.Tensor] = None,
+        bias: Optional[torch.Tensor] = None,
+        eps: float = 1e-5
 ) -> torch.Tensor:
     if torch.jit.is_scripting():
         # currently cannot use is_autocast_enabled within torchscript

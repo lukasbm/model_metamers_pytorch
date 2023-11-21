@@ -1,11 +1,10 @@
 # Backends based on https://github.com/chung-neuroai-lab/adversarial-manifolds
 # Removed Backends that are not used in Feather et al. 2022
-import numpy as np
 import torch
 from torch import nn
-from collections import OrderedDict
 
-from .modules import FakeReLU, SequentialWithArgs, FakeReLUM
+from .modules import FakeReLUM
+
 
 # AlexNet Back-End architecture
 # Based on Torchvision implementation in
@@ -26,17 +25,17 @@ class AlexNetBackEnd(nn.Module):
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         )
         featurenames = [
-                        'conv1', 'relu1', 'maxpool1',
-                        'conv2', 'relu2',
-                        'conv3', 'relu3',
-                        'conv4', 'relu4',
-                        'maxpool2']
+            'conv1', 'relu1', 'maxpool1',
+            'conv2', 'relu2',
+            'conv3', 'relu3',
+            'conv4', 'relu4',
+            'maxpool2']
         self.featurenames = featurenames
 
         self.fake_relu_dict = nn.ModuleDict()
         for layer_name in self.featurenames:
             if 'relu' in layer_name:
-                self.fake_relu_dict[layer_name] =  FakeReLUM()
+                self.fake_relu_dict[layer_name] = FakeReLUM()
 
         self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
         self.classifier = nn.Sequential(
@@ -80,5 +79,3 @@ class AlexNetBackEnd(nn.Module):
         if with_latent:
             return x, None, all_outputs
         return x
-
-

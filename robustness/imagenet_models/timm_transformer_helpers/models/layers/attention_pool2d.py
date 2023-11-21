@@ -27,6 +27,7 @@ class RotAttentionPool2d(nn.Module):
     NOTE: While this impl does not require a fixed feature size, performance at differeing resolutions from
     train varies widely and falls off dramatically. I'm not sure if there is a way around this... -RW
     """
+
     def __init__(
             self,
             in_features: int,
@@ -85,6 +86,7 @@ class AttentionPool2d(nn.Module):
 
     NOTE: This requires feature size upon construction and well prevent adaptive sizing of the network.
     """
+
     def __init__(
             self,
             in_features: int,

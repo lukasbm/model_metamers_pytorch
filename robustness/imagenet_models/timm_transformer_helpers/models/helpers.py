@@ -17,15 +17,13 @@ import torch.nn as nn
 from torch.hub import load_state_dict_from_url
 from torch.utils.checkpoint import checkpoint
 
-from .features import FeatureListNet, FeatureDictNet, FeatureHookNet
+from .features import FeatureListNet, FeatureHookNet
 from .fx_features import FeatureGraphNet
 from .hub import has_hf_hub, download_cached_file, load_state_dict_from_hf
 from .layers import Conv2dSame, Linear, BatchNormAct2d
 from .registry import get_pretrained_cfg
 
-
 _logger = logging.getLogger(__name__)
-
 
 # Global variables for rarely used pretrained checkpoint download progress and hash check.
 # Use set_pretrained_download_progress / set_pretrained_check_hash functions to toggle.
@@ -531,7 +529,7 @@ def build_model_with_cfg(
     model = model_cls(**kwargs) if model_cfg is None else model_cls(cfg=model_cfg, **kwargs)
     model.pretrained_cfg = pretrained_cfg
     model.default_cfg = model.pretrained_cfg  # alias for backwards compat
-    
+
     if pruned:
         model = adapt_model_from_file(model, variant)
 
@@ -566,7 +564,7 @@ def build_model_with_cfg(
         model = feature_cls(model, **feature_cfg)
         model.pretrained_cfg = pretrained_cfg_for_features(pretrained_cfg)  # add back default_cfg
         model.default_cfg = model.pretrained_cfg  # alias for backwards compat
-    
+
     return model
 
 
@@ -739,11 +737,13 @@ def checkpoint_seq(
         >>> model = nn.Sequential(...)
         >>> input_var = checkpoint_seq(model, input_var, every=2)
     """
+
     def run_function(start, end, functions):
         def forward(_x):
             for j in range(start, end + 1):
                 _x = functions[j](_x)
             return _x
+
         return forward
 
     if isinstance(functions, torch.nn.Sequential):

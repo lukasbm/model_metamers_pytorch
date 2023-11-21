@@ -1,10 +1,9 @@
 import torch as ch
-import numpy as np
 from torch import nn
-from robustness.audio_functions import audio_transforms
 from torch._jit_internal import _copy_to_script_wrapper
-import numpy as np
-from .layers.padding import pad_valid_time, pad_same
+
+from robustness.audio_functions import audio_transforms
+
 
 class FakeReLU(ch.autograd.Function):
     @staticmethod
@@ -15,20 +14,23 @@ class FakeReLU(ch.autograd.Function):
     def backward(ctx, grad_output):
         return grad_output
 
+
 class FakeReLUM(nn.Module):
     def forward(self, x):
         return FakeReLU.apply(x)
+
 
 class SequentialWithArgs(ch.nn.Sequential):
     def forward(self, input, *args, **kwargs):
         vs = list(self._modules.values())
         l = len(vs)
         for i in range(l):
-            if i == l-1:
+            if i == l - 1:
                 input = vs[i](input, *args, **kwargs)
             else:
                 input = vs[i](input)
         return input
+
 
 class AudioInputRepresentation(ch.nn.Module):
     '''
@@ -36,6 +38,7 @@ class AudioInputRepresentation(ch.nn.Module):
     representation for training, ie using a mel spectrogram or a
     cochleagram.
     '''
+
     def __init__(self, rep_type, rep_kwargs, compression_type, compression_kwargs):
         super(AudioInputRepresentation, self).__init__()
         self.rep_type = rep_type
@@ -54,6 +57,7 @@ class AudioInputRepresentation(ch.nn.Module):
         # print(self.full_rep)
         x, _ = self.full_rep(x, None)
         return x
+
 
 class SequentialAttacker(ch.nn.Module):
     r"""A sequential container with additional kwargs for attacker models.
@@ -135,4 +139,3 @@ class SequentialAttacker(ch.nn.Module):
         for module in self:
             input = module(input, **kwargs)
         return input
-

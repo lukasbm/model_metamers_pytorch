@@ -1,5 +1,5 @@
 import math
-from typing import List, Tuple, Optional, Union
+from typing import List, Optional
 
 import torch
 from torch import nn as nn
@@ -173,7 +173,7 @@ def build_rotary_pos_embed(
     NOTE: shape arg should include spatial dim only
     """
     feat_shape = torch.Size(feat_shape)
-    
+
     sin_emb, cos_emb = build_fourier_pos_embed(
         feat_shape, bands=bands, num_bands=dim // 4, max_res=max_freq, linear_bands=linear_bands,
         concat_out=False, device=device, dtype=dtype)
@@ -193,6 +193,7 @@ class RotaryEmbedding(nn.Module):
     * https://github.com/lucidrains/vit-pytorch/blob/6f3a5fcf0bca1c5ec33a35ef48d97213709df4ba/vit_pytorch/rvt.py
     * https://blog.eleuther.ai/rotary-embeddings/
     """
+
     def __init__(self, dim, max_res=224, linear_bands: bool = False):
         super().__init__()
         self.dim = dim

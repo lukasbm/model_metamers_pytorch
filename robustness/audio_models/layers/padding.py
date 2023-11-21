@@ -31,12 +31,14 @@ def pad_same(x, k: List[int], s: List[int], d: List[int] = (1, 1), value: float 
         x = F.pad(x, [pad_w // 2, pad_w - pad_w // 2, pad_h // 2, pad_h - pad_h // 2], value=value)
     return x
 
+
 def pad_same1d(x, k: List[int], s: List[int], d: List[int] = (1, 1), value: float = 0):
     ih = x.size()[-1]
     pad_h = get_same_padding(ih, k[0], s[0], d[0])
-    if pad_h > 0 :
+    if pad_h > 0:
         x = F.pad(x, [pad_h // 2, pad_h - pad_h // 2], value=value)
     return x
+
 
 # Dynamically pad input x with 'SAME' padding for x and valid for y
 def pad_valid_time(x, k: List[int], s: List[int], d: List[int] = (1, 1), value: float = 0):

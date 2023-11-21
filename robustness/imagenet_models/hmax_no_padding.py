@@ -52,32 +52,35 @@ References
          Mechanisms.” IEEE Trans Pattern Anal Mach Intell 29, no. 3 (2007):
          411–26.  https://doi.org/10.1109/TPAMI.2007.56.
 """
-import numpy as np
-from scipy.io import loadmat
-import torch
-from torch import nn
 import os
+
+import numpy as np
+import torch
+from scipy.io import loadmat
+from torch import nn
 
 __all__ = ['hmax_standard_with_readout_no_padding']
 
 STABILITY_OFFSET = 1e-10
+
 
 class ClippedPower(torch.autograd.Function):
     """
     Takes the power of a signal and clips its gradients to the 
     provided values in the backwards pass
     """
+
     @staticmethod
     def forward(ctx, x, clip_value, power):
         ctx.save_for_backward(x)
         ctx.clip_value = clip_value
         ctx.power = power
         return torch.pow(x, power)
- 
+
     @staticmethod
     def backward(ctx, grad_output):
         x, = ctx.saved_tensors
-        g = ctx.power * torch.pow(x, ctx.power-1)
+        g = ctx.power * torch.pow(x, ctx.power - 1)
         return grad_output * torch.clamp(g, -ctx.clip_value, ctx.clip_value), None, None
 
 
@@ -111,9 +114,9 @@ def gabor_filter(size, wavelength, orientation):
     x, y = np.mgrid[:size, :size] - (size // 2)
     rotx = x * np.cos(theta) + y * np.sin(theta)
     roty = -x * np.sin(theta) + y * np.cos(theta)
-    filt = np.exp(-(rotx**2 + gamma**2 * roty**2) / (2 * sigma ** 2))
+    filt = np.exp(-(rotx ** 2 + gamma ** 2 * roty ** 2) / (2 * sigma ** 2))
     filt *= np.cos(2 * np.pi * rotx / lambda_)
-    filt[np.sqrt(x**2 + y**2) > (size / 2)] = 0
+    filt[np.sqrt(x ** 2 + y ** 2) > (size / 2)] = 0
 
     # Normalize the filter
     filt = filt - np.mean(filt)
@@ -145,6 +148,7 @@ class S1(nn.Module):
     orientations : list of float
         The orientations of the Gabor filters, in degrees.
     """
+
     def __init__(self, size, wavelength, orientations=[90, -45, 0, 45]):
         super().__init__()
         self.num_orientations = len(orientations)
@@ -174,12 +178,12 @@ class S1(nn.Module):
         """Apply Gabor filters, take absolute value, and normalize."""
         s1_output = torch.abs(self.gabor(img))
         # relu added by jfeather on 09/29/2021 to avoid nans (boundaries can cause values < 0)
-        norm = torch.sqrt(torch.nn.functional.relu(self.uniform(img ** 2)) + STABILITY_OFFSET) 
-# Seems like the max gradient is only ~1.5 so we aren't running into too many exploding values here? 
-#         norm = ClippedPower.apply(torch.nn.functional.relu(self.uniform(img ** 2)) + STABILITY_OFFSET, 1, 1/2)
+        norm = torch.sqrt(torch.nn.functional.relu(self.uniform(img ** 2)) + STABILITY_OFFSET)
+        # Seems like the max gradient is only ~1.5 so we aren't running into too many exploding values here?
+        #         norm = ClippedPower.apply(torch.nn.functional.relu(self.uniform(img ** 2)) + STABILITY_OFFSET, 1, 1/2)
         # removed by jfeather 10/27/2021 because we added in an offset to our sqrt so there will not be values = 0) 
-#         norm.data[norm == 0] = 1  # To avoid divide by zero
-#         norm[norm == 0] = 1 # To avoid divide by zero
+        #         norm.data[norm == 0] = 1  # To avoid divide by zero
+        #         norm[norm == 0] = 1 # To avoid divide by zero
         s1_output /= norm
         return s1_output
 
@@ -194,6 +198,7 @@ class C1(nn.Module):
     size : int
         Size of the MaxPool2d operation being performed by this C1 layer.
     """
+
     def __init__(self, size):
         super().__init__()
         self.size = size
@@ -241,6 +246,7 @@ class S2(nn.Module):
            National Academy of Sciences 104, no. 15 (April 10, 2007): 6424–29.
            https://doi.org/10.1073/pnas.0700622104.
     """
+
     def __init__(self, patches, activation='gaussian', sigma=1):
         super().__init__()
         self.activation = activation
@@ -298,12 +304,12 @@ class S2(nn.Module):
             if self.activation == 'gaussian':
                 dist = torch.exp(- 1 / (2 * self.sigma ** 2) * dist)
             elif self.activation == 'euclidean':
-# Should the following be a relu instead of a search for dist < 0? 
+                # Should the following be a relu instead of a search for dist < 0?
                 dist = torch.nn.functional.relu(dist)
-#                 dist[dist < 0] = 0  # Negative values should never occur
+                #                 dist[dist < 0] = 0  # Negative values should never occur
                 torch.sqrt_(dist + STABILITY_OFFSET)
-# Not sure why this negative sign is here? jfeather removed 10/27/2021
-#                 dist = -dist
+            # Not sure why this negative sign is here? jfeather removed 10/27/2021
+            #                 dist = -dist
             else:
                 raise ValueError("activation parameter should be either "
                                  "'gaussian' or 'euclidean'.")
@@ -314,6 +320,7 @@ class S2(nn.Module):
 
 class C2(nn.Module):
     """A layer of C2 units operating on a layer of S2 units."""
+
     def forward(self, s2_outputs):
         """Take the maximum value of the underlying S2 units."""
         maxs = [s2.max(dim=3)[0] for s2 in s2_outputs]
@@ -345,7 +352,8 @@ class HMAX(nn.Module):
     c2_output : list of Tensors, shape (batch_size, num_patches)
         For each scale, the output of the C2 units.
     """
-    def __init__(self, universal_patch_set, s2_act='gaussian', 
+
+    def __init__(self, universal_patch_set, s2_act='gaussian',
                  linear_readout=False, num_classes=1000):
         super().__init__()
         self.linear_readout = linear_readout
@@ -371,9 +379,9 @@ class HMAX(nn.Module):
             S1(size=37, wavelength=3.25),
         ])
 
-#         # Explicitly add the S1 units as submodules of the model
-#         for s1 in self.s1_units:
-#             self.add_module('s1_%02d' % s1.size, s1)
+        #         # Explicitly add the S1 units as submodules of the model
+        #         for s1 in self.s1_units:
+        #             self.add_module('s1_%02d' % s1.size, s1)
 
         # Each C1 layer pools across two S1 layers
         self.c1_units = nn.ModuleList([
@@ -387,9 +395,9 @@ class HMAX(nn.Module):
             C1(size=22),
         ])
 
-#         # Explicitly add the C1 units as submodules of the model
-#         for c1 in self.c1_units:
-#             self.add_module('c1_%02d' % c1.size, c1)
+        #         # Explicitly add the C1 units as submodules of the model
+        #         for c1 in self.c1_units:
+        #             self.add_module('c1_%02d' % c1.size, c1)
 
         # Read the universal patch set for the S2 layer
         m = loadmat(universal_patch_set)
@@ -398,18 +406,18 @@ class HMAX(nn.Module):
 
         # One S2 layer for each patch scale, operating on all C1 layers
         self.s2_units = nn.ModuleList([S2(patches=scale_patches, activation=s2_act)
-                         for scale_patches in patches])
+                                       for scale_patches in patches])
 
-#         # Explicitly add the S2 units as submodules of the model
-#         for i, s2 in enumerate(self.s2_units):
-#             self.add_module('s2_%d' % i, s2)
+        #         # Explicitly add the S2 units as submodules of the model
+        #         for i, s2 in enumerate(self.s2_units):
+        #             self.add_module('s2_%d' % i, s2)
 
         # One C2 layer operating on each scale
         self.c2_units = nn.ModuleList([C2() for s2 in self.s2_units])
 
-#         # Explicitly add the C2 units as submodules of the model
-#         for i, c2 in enumerate(self.c2_units):
-#             self.add_module('c2_%d' % i, c2)
+        #         # Explicitly add the C2 units as submodules of the model
+        #         for i, c2 in enumerate(self.c2_units):
+        #             self.add_module('c2_%d' % i, c2)
 
         if linear_readout:
             self.flatten = nn.Flatten()
@@ -440,7 +448,7 @@ class HMAX(nn.Module):
         # Each C1 layer pools across two S1 layers
         c1_outputs = []
         for c1, i in zip(self.c1_units, range(0, len(self.s1_units), 2)):
-            c1_outputs.append(c1(s1_outputs[i:i+2]))
+            c1_outputs.append(c1(s1_outputs[i:i + 2]))
 
         s2_outputs = [s2(c1_outputs) for s2 in self.s2_units]
         c2_outputs = [c2(s2) for c2, s2 in zip(self.c2_units, s2_outputs)]
@@ -452,16 +460,16 @@ class HMAX(nn.Module):
         all_outputs = {}
         all_outputs['input_after_preproc'] = img
         all_outputs['preproc_image'] = img
-#         c2_outputs = self.run_all_layers(img)[-1]
+        #         c2_outputs = self.run_all_layers(img)[-1]
         layers_out = self.get_all_layers_tensors(img)
         if with_latent:
             batch_size = layers_out[0][0].shape[0]
             all_outputs['s1_out'] = torch.cat(layers_out[0], 1)
             all_outputs['c1_out_no_reshape'] = layers_out[1]
-            all_outputs['c1_out'] = torch.cat([c[:, None, :].view(batch_size,-1) for c in layers_out[1]], 1)
+            all_outputs['c1_out'] = torch.cat([c[:, None, :].view(batch_size, -1) for c in layers_out[1]], 1)
             all_outputs['s2_out_no_reshape'] = layers_out[2]
-            all_outputs['s2_out'] = torch.cat([b.view(batch_size,-1) for c in layers_out[2] for b in c], 1)
-#         all_outputs['c2_out'] = torch.cat(layers_out[3], 1)
+            all_outputs['s2_out'] = torch.cat([b.view(batch_size, -1) for c in layers_out[2] for b in c], 1)
+        #         all_outputs['c2_out'] = torch.cat(layers_out[3], 1)
         c2_outputs = layers_out[-1]
         all_outputs['c2_out_no_reshape'] = layers_out[-1]
         c2_outputs = torch.cat(
@@ -503,12 +511,13 @@ class HMAX(nn.Module):
         """
         s1_out, c1_out, s2_out, c2_out = self.run_all_layers(img)
         return s1_out, c1_out, s2_out, c2_out
-#         return (
-#             [s1 for s1 in s1_out],
-#             [c1 for c1 in c1_out],
-#             [[s2_ for s2_ in s2] for s2 in s2_out],
-#             [c2 for c2 in c2_out],
-#         )
+
+    #         return (
+    #             [s1 for s1 in s1_out],
+    #             [c1 for c1 in c1_out],
+    #             [[s2_ for s2_ in s2] for s2 in s2_out],
+    #             [c2 for c2 in c2_out],
+    #         )
 
     def get_all_layers(self, img):
         """Get the activation for all layers as NumPy arrays.
@@ -538,6 +547,7 @@ class HMAX(nn.Module):
             [c2.cpu().detach().numpy() for c2 in c2_out],
         )
 
+
 def hmax_standard_with_readout_no_padding(**kwargs):
     """Constructs the hmax vision model with a linear readout that can be trained
     This way we can train a transfer head on top of the model and measure class accuracy 
@@ -546,7 +556,7 @@ def hmax_standard_with_readout_no_padding(**kwargs):
     Args:
         pretrained (bool): 
     """
-#     saved_params = '/om4/group/mcdermott/user/jfeather/projects/robust_audio_networks/hmax/pytorch_hmax/universal_patch_set.mat'
+    #     saved_params = '/om4/group/mcdermott/user/jfeather/projects/robust_audio_networks/hmax/pytorch_hmax/universal_patch_set.mat'
     if not os.path.isfile('hmax_universal_path_set.mat'):
         import urllib.request
         patch_set_url = 'https://github.com/wmvanvliet/pytorch_hmax/raw/master/universal_patch_set.mat'
@@ -562,7 +572,6 @@ def hmax_standard_with_readout_no_padding(**kwargs):
             param.requires_grad = False
 
     for name, param in model.named_parameters():
-        print('%s: %s'%(name, param.requires_grad))
- 
-    return model
+        print('%s: %s' % (name, param.requires_grad))
 
+    return model

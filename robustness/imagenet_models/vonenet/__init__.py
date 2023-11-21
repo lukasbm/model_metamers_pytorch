@@ -5,10 +5,9 @@ Only the model backbones included in Feather et al. 2022 are included.
 
 import torch
 import torch.nn as nn
-import os
+from torch.nn import Module
 
 from .vonenet import VOneNet
-from torch.nn import Module
 
 
 class Wrapper(Module):
@@ -17,7 +16,7 @@ class Wrapper(Module):
         self.module = model
 
 
-def get_vonenet_model(model_arch=None, pretrained=True, map_location='cpu', weightsdir_path=None, 
+def get_vonenet_model(model_arch=None, pretrained=True, map_location='cpu', weightsdir_path=None,
                       num_stochastic_copies=None, vone_outside_sequential=False, **kwargs):
     """
     Returns a VOneNet model.
@@ -65,10 +64,10 @@ def get_vonenet_model(model_arch=None, pretrained=True, map_location='cpu', weig
 
         model = nn.DataParallel(model)
     else:
-        model = globals()[f'VOneNet'](model_arch=model_arch, 
+        model = globals()[f'VOneNet'](model_arch=model_arch,
                                       vone_outside_sequential=vone_outside_sequential,
                                       **kwargs)
-#         nn.DataParallel(model)
+    #         nn.DataParallel(model)
     return model
 
 
@@ -85,6 +84,7 @@ def vonealexnet_gaussian_noise_std4(pretrained=False, **kwargs):
                               noise_level=4)
     return model
 
+
 def vonealexnet_gaussian_fixed_noise_std4(pretrained=False, **kwargs):
     """Constructs a Gaussian Noise VOneNet model with and AlexNet backbone
 
@@ -98,5 +98,3 @@ def vonealexnet_gaussian_fixed_noise_std4(pretrained=False, **kwargs):
                               noise_level=4)
     model.vone_block.fix_noise()
     return model
-
-

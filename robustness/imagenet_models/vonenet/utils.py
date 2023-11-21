@@ -1,12 +1,10 @@
-
 import numpy as np
 import torch
 
 
-def gabor_kernel(frequency,  sigma_x, sigma_y, theta=0, offset=0, ks=61):
-
+def gabor_kernel(frequency, sigma_x, sigma_y, theta=0, offset=0, ks=61):
     w = ks // 2
-    grid_val = torch.arange(-w, w+1, dtype=torch.float)
+    grid_val = torch.arange(-w, w + 1, dtype=torch.float)
     x, y = torch.meshgrid(grid_val, grid_val)
     rotx = x * np.cos(theta) + y * np.sin(theta)
     roty = -x * np.sin(theta) + y * np.cos(theta)
@@ -24,9 +22,8 @@ def sample_dist(hist, bins, ns, scale='linear'):
         rand_sample = np.interp(rand_sample, np.hstack(([0], hist.cumsum())), bins)
     elif scale == 'log2':
         rand_sample = np.interp(rand_sample, np.hstack(([0], hist.cumsum())), np.log2(bins))
-        rand_sample = 2**rand_sample
+        rand_sample = 2 ** rand_sample
     elif scale == 'log10':
         rand_sample = np.interp(rand_sample, np.hstack(([0], hist.cumsum())), np.log10(bins))
-        rand_sample = 10**rand_sample
+        rand_sample = 10 ** rand_sample
     return rand_sample
-

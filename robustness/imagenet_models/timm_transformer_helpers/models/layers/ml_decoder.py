@@ -1,7 +1,6 @@
 from typing import Optional
 
 import torch
-from torch import nn
 from torch import nn, Tensor
 from torch.nn.modules.transformer import _get_activation_fn
 

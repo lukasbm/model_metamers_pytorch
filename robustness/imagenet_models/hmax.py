@@ -55,32 +55,35 @@ References
          Mechanisms.” IEEE Trans Pattern Anal Mach Intell 29, no. 3 (2007):
          411–26.  https://doi.org/10.1109/TPAMI.2007.56.
 """
-import numpy as np
-from scipy.io import loadmat
-import torch
-from torch import nn
 import os
+
+import numpy as np
+import torch
+from scipy.io import loadmat
+from torch import nn
 
 __all__ = ['hmax_standard_with_readout']
 
 STABILITY_OFFSET = 1e-10
+
 
 class ClippedPower(torch.autograd.Function):
     """
     Takes the power of a signal and clips its gradients to the 
     provided values in the backwards pass
     """
+
     @staticmethod
     def forward(ctx, x, clip_value, power):
         ctx.save_for_backward(x)
         ctx.clip_value = clip_value
         ctx.power = power
         return torch.pow(x, power)
- 
+
     @staticmethod
     def backward(ctx, grad_output):
         x, = ctx.saved_tensors
-        g = ctx.power * torch.pow(x, ctx.power-1)
+        g = ctx.power * torch.pow(x, ctx.power - 1)
         return grad_output * torch.clamp(g, -ctx.clip_value, ctx.clip_value), None, None
 
 
@@ -114,9 +117,9 @@ def gabor_filter(size, wavelength, orientation):
     x, y = np.mgrid[:size, :size] - (size // 2)
     rotx = x * np.cos(theta) + y * np.sin(theta)
     roty = -x * np.sin(theta) + y * np.cos(theta)
-    filt = np.exp(-(rotx**2 + gamma**2 * roty**2) / (2 * sigma ** 2))
+    filt = np.exp(-(rotx ** 2 + gamma ** 2 * roty ** 2) / (2 * sigma ** 2))
     filt *= np.cos(2 * np.pi * rotx / lambda_)
-    filt[np.sqrt(x**2 + y**2) > (size / 2)] = 0
+    filt[np.sqrt(x ** 2 + y ** 2) > (size / 2)] = 0
 
     # Normalize the filter
     filt = filt - np.mean(filt)
@@ -148,6 +151,7 @@ class S1(nn.Module):
     orientations : list of float
         The orientations of the Gabor filters, in degrees.
     """
+
     def __init__(self, size, wavelength, orientations=[90, -45, 0, 45],
                  include_borders=True):
         super().__init__()
@@ -155,7 +159,7 @@ class S1(nn.Module):
         self.size = size
         # Added by jfeather to better match matlab implementation of padding 
         # (10/29/2021)
-        self.include_borders = include_borders 
+        self.include_borders = include_borders
 
         # Use PyTorch's Conv2d as a base object. Each "channel" will be an
         # orientation. 'same' convolution is not standard in pytorch, so an 
@@ -185,13 +189,13 @@ class S1(nn.Module):
         """Apply Gabor filters, take absolute value, and normalize."""
         s1_output = torch.abs(self.gabor(img))
         if not self.include_borders:
-            s1_output[:,:,0:self.remove_padding_amount,:] = 0
-            s1_output[:,:,:,0:self.remove_padding_amount] = 0
-            s1_output[:,:,-self.remove_padding_amount:,:] = 0
-            s1_output[:,:,:,-self.remove_padding_amount:] = 0
- 
+            s1_output[:, :, 0:self.remove_padding_amount, :] = 0
+            s1_output[:, :, :, 0:self.remove_padding_amount] = 0
+            s1_output[:, :, -self.remove_padding_amount:, :] = 0
+            s1_output[:, :, :, -self.remove_padding_amount:] = 0
+
         # relu added by jfeather on 09/29/2021 to avoid nans (boundaries can cause values < 0)
-        norm = torch.sqrt(torch.nn.functional.relu(self.uniform(img ** 2)) + STABILITY_OFFSET) 
+        norm = torch.sqrt(torch.nn.functional.relu(self.uniform(img ** 2)) + STABILITY_OFFSET)
         s1_output /= norm
         return s1_output
 
@@ -206,6 +210,7 @@ class C1(nn.Module):
     size : int
         Size of the MaxPool2d operation being performed by this C1 layer.
     """
+
     def __init__(self, size):
         super().__init__()
         self.size = size
@@ -253,6 +258,7 @@ class S2(nn.Module):
            National Academy of Sciences 104, no. 15 (April 10, 2007): 6424–29.
            https://doi.org/10.1073/pnas.0700622104.
     """
+
     def __init__(self, patches, activation='gaussian', sigma=1):
         super().__init__()
         self.activation = activation
@@ -325,16 +331,18 @@ class S2(nn.Module):
 
 class C2(nn.Module):
     """A layer of C2 units operating on a layer of S2 units."""
+
     def __init__(self, S2_activation='gaussian'):
         super().__init__()
         # If S2 activation is "euclidean" then we need to negate the output
         self.S2_activation = S2_activation
+
     def forward(self, s2_outputs):
         """Take the maximum value of the underlying S2 units."""
         maxs = [s2.max(dim=3)[0] for s2 in s2_outputs]
         maxs = [m.max(dim=2)[0] for m in maxs]
         maxs = torch.cat([m[:, None, :] for m in maxs], 1)
-        if self.S2_activation=='euclidean':
+        if self.S2_activation == 'euclidean':
             return -maxs.max(dim=1)[0]
         else:
             return maxs.max(dim=1)[0]
@@ -363,8 +371,9 @@ class HMAX(nn.Module):
     c2_output : list of Tensors, shape (batch_size, num_patches)
         For each scale, the output of the C2 units.
     """
-    def __init__(self, universal_patch_set, s2_act='gaussian', 
-                 linear_readout=False, num_classes=1000, 
+
+    def __init__(self, universal_patch_set, s2_act='gaussian',
+                 linear_readout=False, num_classes=1000,
                  include_S1_borders=True):
         super().__init__()
         self.linear_readout = linear_readout
@@ -409,7 +418,7 @@ class HMAX(nn.Module):
 
         # One S2 layer for each patch scale, operating on all C1 layers
         self.s2_units = nn.ModuleList([S2(patches=scale_patches, activation=s2_act)
-                         for scale_patches in patches])
+                                       for scale_patches in patches])
 
         # One C2 layer operating on each scale
         self.c2_units = nn.ModuleList([C2(S2_activation=s2_act) for s2 in self.s2_units])
@@ -443,7 +452,7 @@ class HMAX(nn.Module):
         # Each C1 layer pools across two S1 layers
         c1_outputs = []
         for c1, i in zip(self.c1_units, range(0, len(self.s1_units), 2)):
-            c1_outputs.append(c1(s1_outputs[i:i+2]))
+            c1_outputs.append(c1(s1_outputs[i:i + 2]))
 
         s2_outputs = [s2(c1_outputs) for s2 in self.s2_units]
         c2_outputs = [c2(s2) for c2, s2 in zip(self.c2_units, s2_outputs)]
@@ -460,10 +469,11 @@ class HMAX(nn.Module):
             batch_size = layers_out[0][0].shape[0]
             all_outputs['s1_out'] = torch.cat(layers_out[0], 1)
             all_outputs['c1_out_no_reshape'] = layers_out[1]
-            all_outputs['c1_out'] = torch.cat([c[:, None, :].view(batch_size,-1) for c in layers_out[1]], 1)
+            all_outputs['c1_out'] = torch.cat([c[:, None, :].view(batch_size, -1) for c in layers_out[1]], 1)
             all_outputs['s2_out_no_reshape'] = layers_out[2]
-            all_outputs['s2_out_reshape_to_list'] = [torch.cat([b.view(batch_size,-1) for b in a],1) for a in layers_out[2]]
-            all_outputs['s2_out'] = torch.cat([b.view(batch_size,-1) for c in layers_out[2] for b in c], 1)
+            all_outputs['s2_out_reshape_to_list'] = [torch.cat([b.view(batch_size, -1) for b in a], 1) for a in
+                                                     layers_out[2]]
+            all_outputs['s2_out'] = torch.cat([b.view(batch_size, -1) for c in layers_out[2] for b in c], 1)
         c2_outputs = layers_out[-1]
         all_outputs['c2_out_no_reshape'] = layers_out[-1]
         c2_outputs = torch.cat(
@@ -534,6 +544,7 @@ class HMAX(nn.Module):
             [c2.cpu().detach().numpy() for c2 in c2_out],
         )
 
+
 def hmax_standard_with_readout(**kwargs):
     """Constructs the hmax vision model with a linear readout that can be trained
     This way we can train a transfer head on top of the model and measure class accuracy 
@@ -549,7 +560,7 @@ def hmax_standard_with_readout(**kwargs):
 
     saved_param = 'hmax_universal_path_set.mat'
 
-    model = HMAX(saved_param, linear_readout=True, num_classes=1000, 
+    model = HMAX(saved_param, linear_readout=True, num_classes=1000,
                  s2_act='gaussian', include_S1_borders=False)
     for name, param in model.named_parameters():
         if name in ['fc.bias', 'fc.weight']:
@@ -558,7 +569,6 @@ def hmax_standard_with_readout(**kwargs):
             param.requires_grad = False
 
     for name, param in model.named_parameters():
-        print('%s: %s'%(name, param.requires_grad))
- 
-    return model
+        print('%s: %s' % (name, param.requires_grad))
 
+    return model

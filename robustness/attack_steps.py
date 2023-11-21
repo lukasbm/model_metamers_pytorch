@@ -12,13 +12,15 @@ import or edit this module and can just think of it as internal.
 
 import torch as ch
 
+
 class AttackerStep:
     '''
     Generic class for attacker steps, under perturbation constraints
     specified by an "origin input" and a perturbation magnitude.
     Must implement project, step, and random_perturb
     '''
-    def __init__(self, orig_input, eps, step_size, use_grad=True, 
+
+    def __init__(self, orig_input, eps, step_size, use_grad=True,
                  min_value=0, max_value=1):
         '''
         Initialize the attacker step with a given perturbation magnitude.
@@ -80,6 +82,7 @@ class AttackerStep:
         '''
         return x
 
+
 ### Instantiations of the AttackerStep class
 
 # L-infinity threat model
@@ -90,6 +93,7 @@ class LinfStep(AttackerStep):
 
     .. math:: S = \{x | \|x - x_0\|_\infty \leq \epsilon\}
     """
+
     def project(self, x):
         """
         """
@@ -109,6 +113,7 @@ class LinfStep(AttackerStep):
         new_x = x + 2 * (ch.rand_like(x) - 0.5) * self.eps
         return ch.clamp(new_x, self.min_value, self.max_value)
 
+
 # L2 threat model
 class L2Step(AttackerStep):
     """
@@ -117,6 +122,7 @@ class L2Step(AttackerStep):
 
     .. math:: S = \{x | \|x - x_0\|_2 \leq \epsilon\}
     """
+
     def project(self, x):
         """
         """
@@ -129,7 +135,7 @@ class L2Step(AttackerStep):
         """
         # Scale g so that each element of the batch is at least norm 1
         l = len(x.shape) - 1
-        g_norm = ch.norm(g.view(g.shape[0], -1), dim=1).view(-1, *([1]*l))
+        g_norm = ch.norm(g.view(g.shape[0], -1), dim=1).view(-1, *([1] * l))
         scaled_g = g / (g_norm + 1e-10)
         return x + scaled_g * self.step_size
 
@@ -151,6 +157,7 @@ class L2StepNormEnforced(AttackerStep):
     But we enforce that the step is always at the edge of the L2 ball, rather than
     a max step. 
     """
+
     # The random initialization is correct, and was used for the random models.
     def project(self, x):
         """
@@ -168,9 +175,9 @@ class L2StepNormEnforced(AttackerStep):
         # Random perturbation is debugged and correct (jfeather 5/3/2021)
         x_shape = x.shape
         perturbation = (ch.nn.functional.normalize(
-                           ch.rand_like(x.view(x_shape[0], -1)) - 0.5, 
-                           p=2,
-                           dim=1) * self.eps).view(*x_shape)
+            ch.rand_like(x.view(x_shape[0], -1)) - 0.5,
+            p=2,
+            dim=1) * self.eps).view(*x_shape)
         new_x = x + perturbation
         # Note: because there is a clamp the norm may be slightly different than 
         # self.eps
@@ -182,6 +189,7 @@ class UnconstrainedStep(AttackerStep):
     """
     Unconstrained threat model, :math:`S = [0, 1]^n`.
     """
+
     def project(self, x):
         """
         """
@@ -208,6 +216,7 @@ class LinfCornersStep(AttackerStep):
 
     .. math:: S = \{x | \|x - x_0\|_\infty \leq \epsilon\}
     """
+
     def project(self, x):
         """
         """
@@ -224,4 +233,3 @@ class LinfCornersStep(AttackerStep):
         # Random perturbation is debugged and correct (jfeather 5/3/2021)
         new_x = x + 2 * (ch.round(ch.rand_like(x)) - 0.5) * self.eps
         return ch.clamp(new_x, self.min_value, self.max_value)
-

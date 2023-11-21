@@ -8,20 +8,22 @@ ResNeXt, SE-ResNeXt, SENet, and MXNet Gluon stem/downsample variants, tiered ste
 Copyright 2019, Ross Wightman
 """
 import math
+import sys
 from functools import partial
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import sys
 sys.path.append('../.')
 from constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from .helpers import build_model_with_cfg, checkpoint_seq
-from .layers import DropBlock2d, DropPath, AvgPool2dSame, BlurPool2d, GroupNorm, create_attn, get_attn, create_classifier
+from .layers import DropBlock2d, DropPath, AvgPool2dSame, BlurPool2d, GroupNorm, create_attn, get_attn, \
+    create_classifier
 from .registry import register_model
 
 __all__ = ['ResNet', 'BasicBlock', 'Bottleneck']  # model_registry will add each entrypoint fn to this
+
 
 def _cfg(url='', **kwargs):
     return {
@@ -118,7 +120,7 @@ default_cfgs = {
     'resnext101_32x8d': _cfg(url='https://download.pytorch.org/models/resnext101_32x8d-8ba56ff5.pth'),
     'resnext101_64x4d': _cfg(
         url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-tpu-weights/resnext101_64x4d_c-0d0e0cc0.pth',
-        interpolation='bicubic', crop_pct=1.0,  test_input_size=(3, 288, 288)),
+        interpolation='bicubic', crop_pct=1.0, test_input_size=(3, 288, 288)),
     'tv_resnext50_32x4d': _cfg(url='https://download.pytorch.org/models/resnext50_32x4d-7cdf4587.pth'),
 
     #  ResNeXt models - Weakly Supervised Pretraining on Instagram Hashtags
@@ -131,9 +133,9 @@ default_cfgs = {
 
     #  Semi-Supervised ResNe*t models from https://github.com/facebookresearch/semi-supervised-ImageNet1K-models
     #  Please note the CC-BY-NC 4.0 license on theses weights, non-commercial use only.
-    'ssl_resnet18':  _cfg(
+    'ssl_resnet18': _cfg(
         url='https://dl.fbaipublicfiles.com/semiweaksupervision/model_files/semi_supervised_resnet18-d92f0530.pth'),
-    'ssl_resnet50':  _cfg(
+    'ssl_resnet50': _cfg(
         url='https://dl.fbaipublicfiles.com/semiweaksupervision/model_files/semi_supervised_resnet50-08389792.pth'),
     'ssl_resnext50_32x4d': _cfg(
         url='https://dl.fbaipublicfiles.com/semiweaksupervision/model_files/semi_supervised_resnext50_32x4-ddb3e555.pth'),
@@ -729,7 +731,7 @@ class ResNet(nn.Module):
 
     def forward(self, x, with_latent=False, no_relu=False, fake_relu=False):
         if with_latent:
-            all_outputs = {'input_after_preproc':x}
+            all_outputs = {'input_after_preproc': x}
         x = self.forward_features(x)
         x = self.forward_head(x)
         if with_latent:
@@ -823,7 +825,7 @@ def resnet26d(pretrained=False, **kwargs):
 def resnet50(pretrained=False, **kwargs):
     """Constructs a ResNet-50 model.
     """
-    model_args = dict(block=Bottleneck, layers=[3, 4, 6, 3],  **kwargs)
+    model_args = dict(block=Bottleneck, layers=[3, 4, 6, 3], **kwargs)
     return _create_resnet('resnet50', pretrained, **model_args)
 
 
@@ -907,7 +909,7 @@ def tv_resnet34(pretrained=False, **kwargs):
 def tv_resnet50(pretrained=False, **kwargs):
     """Constructs a ResNet-50 model with original Torchvision weights.
     """
-    model_args = dict(block=Bottleneck, layers=[3, 4, 6, 3],  **kwargs)
+    model_args = dict(block=Bottleneck, layers=[3, 4, 6, 3], **kwargs)
     return _create_resnet('tv_resnet50', pretrained, **model_args)
 
 
@@ -954,7 +956,7 @@ def wide_resnet101_2(pretrained=False, **kwargs):
 def resnet50_gn(pretrained=False, **kwargs):
     """Constructs a ResNet-50 model w/ GroupNorm
     """
-    model_args = dict(block=Bottleneck, layers=[3, 4, 6, 3],  **kwargs)
+    model_args = dict(block=Bottleneck, layers=[3, 4, 6, 3], **kwargs)
     return _create_resnet('resnet50_gn', pretrained, norm_layer=GroupNorm, **model_args)
 
 
@@ -971,7 +973,7 @@ def resnext50d_32x4d(pretrained=False, **kwargs):
     """Constructs a ResNeXt50d-32x4d model. ResNext50 w/ deep stem & avg pool downsample
     """
     model_args = dict(
-        block=Bottleneck, layers=[3, 4, 6, 3],  cardinality=32, base_width=4,
+        block=Bottleneck, layers=[3, 4, 6, 3], cardinality=32, base_width=4,
         stem_width=32, stem_type='deep', avg_down=True, **kwargs)
     return _create_resnet('resnext50d_32x4d', pretrained, **model_args)
 
@@ -1068,7 +1070,7 @@ def ssl_resnet50(pretrained=False, **kwargs):
     `"Billion-scale Semi-Supervised Learning for Image Classification" <https://arxiv.org/abs/1905.00546>`_
     Weights from https://github.com/facebookresearch/semi-supervised-ImageNet1K-models/
     """
-    model_args = dict(block=Bottleneck, layers=[3, 4, 6, 3],  **kwargs)
+    model_args = dict(block=Bottleneck, layers=[3, 4, 6, 3], **kwargs)
     return _create_resnet('ssl_resnet50', pretrained, **model_args)
 
 
@@ -1130,7 +1132,7 @@ def swsl_resnet50(pretrained=False, **kwargs):
        `"Billion-scale Semi-Supervised Learning for Image Classification" <https://arxiv.org/abs/1905.00546>`_
        Weights from https://github.com/facebookresearch/semi-supervised-ImageNet1K-models/
     """
-    model_args = dict(block=Bottleneck, layers=[3, 4, 6, 3],  **kwargs)
+    model_args = dict(block=Bottleneck, layers=[3, 4, 6, 3], **kwargs)
     return _create_resnet('swsl_resnet50', pretrained, **model_args)
 
 
@@ -1318,7 +1320,7 @@ def seresnet50(pretrained=False, **kwargs):
 @register_model
 def seresnet50t(pretrained=False, **kwargs):
     model_args = dict(
-        block=Bottleneck, layers=[3, 4, 6, 3],  stem_width=32, stem_type='deep_tiered', avg_down=True,
+        block=Bottleneck, layers=[3, 4, 6, 3], stem_width=32, stem_type='deep_tiered', avg_down=True,
         block_args=dict(attn_layer='se'), **kwargs)
     return _create_resnet('seresnet50t', pretrained, **model_args)
 
@@ -1531,7 +1533,7 @@ def resnetrs50(pretrained=False, **kwargs):
     attn_layer = partial(get_attn('se'), rd_ratio=0.25)
     model_args = dict(
         block=Bottleneck, layers=[3, 4, 6, 3], stem_width=32, stem_type='deep', replace_stem_pool=True,
-        avg_down=True,  block_args=dict(attn_layer=attn_layer), **kwargs)
+        avg_down=True, block_args=dict(attn_layer=attn_layer), **kwargs)
     return _create_resnet('resnetrs50', pretrained, **model_args)
 
 
@@ -1544,7 +1546,7 @@ def resnetrs101(pretrained=False, **kwargs):
     attn_layer = partial(get_attn('se'), rd_ratio=0.25)
     model_args = dict(
         block=Bottleneck, layers=[3, 4, 23, 3], stem_width=32, stem_type='deep', replace_stem_pool=True,
-        avg_down=True,  block_args=dict(attn_layer=attn_layer), **kwargs)
+        avg_down=True, block_args=dict(attn_layer=attn_layer), **kwargs)
     return _create_resnet('resnetrs101', pretrained, **model_args)
 
 
@@ -1557,7 +1559,7 @@ def resnetrs152(pretrained=False, **kwargs):
     attn_layer = partial(get_attn('se'), rd_ratio=0.25)
     model_args = dict(
         block=Bottleneck, layers=[3, 8, 36, 3], stem_width=32, stem_type='deep', replace_stem_pool=True,
-        avg_down=True,  block_args=dict(attn_layer=attn_layer), **kwargs)
+        avg_down=True, block_args=dict(attn_layer=attn_layer), **kwargs)
     return _create_resnet('resnetrs152', pretrained, **model_args)
 
 
@@ -1570,7 +1572,7 @@ def resnetrs200(pretrained=False, **kwargs):
     attn_layer = partial(get_attn('se'), rd_ratio=0.25)
     model_args = dict(
         block=Bottleneck, layers=[3, 24, 36, 3], stem_width=32, stem_type='deep', replace_stem_pool=True,
-        avg_down=True,  block_args=dict(attn_layer=attn_layer), **kwargs)
+        avg_down=True, block_args=dict(attn_layer=attn_layer), **kwargs)
     return _create_resnet('resnetrs200', pretrained, **model_args)
 
 
@@ -1583,9 +1585,8 @@ def resnetrs270(pretrained=False, **kwargs):
     attn_layer = partial(get_attn('se'), rd_ratio=0.25)
     model_args = dict(
         block=Bottleneck, layers=[4, 29, 53, 4], stem_width=32, stem_type='deep', replace_stem_pool=True,
-        avg_down=True,  block_args=dict(attn_layer=attn_layer), **kwargs)
+        avg_down=True, block_args=dict(attn_layer=attn_layer), **kwargs)
     return _create_resnet('resnetrs270', pretrained, **model_args)
-
 
 
 @register_model
@@ -1597,7 +1598,7 @@ def resnetrs350(pretrained=False, **kwargs):
     attn_layer = partial(get_attn('se'), rd_ratio=0.25)
     model_args = dict(
         block=Bottleneck, layers=[4, 36, 72, 4], stem_width=32, stem_type='deep', replace_stem_pool=True,
-        avg_down=True,  block_args=dict(attn_layer=attn_layer), **kwargs)
+        avg_down=True, block_args=dict(attn_layer=attn_layer), **kwargs)
     return _create_resnet('resnetrs350', pretrained, **model_args)
 
 
@@ -1610,5 +1611,5 @@ def resnetrs420(pretrained=False, **kwargs):
     attn_layer = partial(get_attn('se'), rd_ratio=0.25)
     model_args = dict(
         block=Bottleneck, layers=[4, 44, 87, 4], stem_width=32, stem_type='deep', replace_stem_pool=True,
-        avg_down=True,  block_args=dict(attn_layer=attn_layer), **kwargs)
+        avg_down=True, block_args=dict(attn_layer=attn_layer), **kwargs)
     return _create_resnet('resnetrs420', pretrained, **model_args)

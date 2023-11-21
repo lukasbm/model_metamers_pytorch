@@ -16,7 +16,6 @@ _has_hardswish = 'hardswish' in dir(torch.nn.functional)
 _has_hardsigmoid = 'hardsigmoid' in dir(torch.nn.functional)
 _has_mish = 'mish' in dir(torch.nn.functional)
 
-
 _ACT_FN_DEFAULT = dict(
     silu=F.silu if _has_silu else swish,
     swish=F.silu if _has_silu else swish,
@@ -57,7 +56,6 @@ _ACT_FNS = (_ACT_FN_ME, _ACT_FN_JIT, _ACT_FN_DEFAULT)
 for a in _ACT_FNS:
     a.setdefault('hardsigmoid', a.get('hard_sigmoid'))
     a.setdefault('hardswish', a.get('hard_swish'))
-
 
 _ACT_LAYER_DEFAULT = dict(
     silu=nn.SiLU if _has_silu else Swish,

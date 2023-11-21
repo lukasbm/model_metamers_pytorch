@@ -21,8 +21,8 @@ https://github.com/lucidrains/lambda-networks
 Hacked together by / Copyright 2021 Ross Wightman
 """
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
 from .helpers import to_2tuple, make_divisible
 from .weight_init import trunc_normal_
@@ -64,6 +64,7 @@ class LambdaLayer(nn.Module):
         qk_ratio (float): ratio of q and k dimensions to output dimension when dim_head not set. (default: 1.0)
         qkv_bias (bool): add bias to q, k, and v projections
     """
+
     def __init__(
             self, dim, dim_out=None, feat_size=None, stride=1, num_heads=4, dim_head=16, r=9,
             qk_ratio=1.0, qkv_bias=False):

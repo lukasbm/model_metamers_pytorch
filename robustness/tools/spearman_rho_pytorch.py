@@ -1,5 +1,5 @@
-import numpy as np
 import torch
+
 
 def _find_repeats(x):
     unique, counts = torch.unique(x, return_counts=True)
@@ -13,14 +13,16 @@ def _get_ranks(x: torch.Tensor) -> torch.Tensor:
 
     repeats = _find_repeats(x)
     for r in repeats:
-        location_repeat = (x==r)
+        location_repeat = (x == r)
         ranks[location_repeat] = torch.mean(ranks[location_repeat])
     return ranks
+
 
 def _get_cov_1d_tensors(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     mu_x = torch.mean(x)
     mu_y = torch.mean(y)
-    return 1/(x.shape[0]-1) * torch.matmul(x-mu_x, y-mu_y)
+    return 1 / (x.shape[0] - 1) * torch.matmul(x - mu_x, y - mu_y)
+
 
 def spearman_correlation_pytorch(x: torch.Tensor, y: torch.Tensor):
     """Compute spearman correlation between 2 1-D tensors

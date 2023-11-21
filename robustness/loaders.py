@@ -1,28 +1,24 @@
-import argparse
+import os
 
 from .tools import folder
 
-import os
 if int(os.environ.get("NOTEBOOK_MODE", 0)) == 1:
     from tqdm import tqdm_notebook as tqdm
 else:
     from tqdm import tqdm as tqdm
 
-import shutil
-import time
 import numpy as np
 import torch as ch
 import torch.utils.data
-from torch.utils.data import DataLoader
 from torch.utils.data import Subset
-import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
+
 def make_loaders(workers, batch_size, transforms, data_path, data_aug=True,
-                custom_class=None, dataset="", label_mapping=None, subset=None, subset_val=None,
-                subset_type='rand', subset_type_val='rand', subset_start=0, subset_start_val=0, val_batch_size=None,
-                only_val=False, shuffle_train=True, shuffle_val=True, seed=1,
-                dl_kwargs={}):
+                 custom_class=None, dataset="", label_mapping=None, subset=None, subset_val=None,
+                 subset_type='rand', subset_type_val='rand', subset_start=0, subset_start_val=0, val_batch_size=None,
+                 only_val=False, shuffle_train=True, shuffle_val=True, seed=1,
+                 dl_kwargs={}):
     '''
     **INTERNAL FUNCTION**
 
@@ -59,10 +55,10 @@ def make_loaders(workers, batch_size, transforms, data_path, data_aug=True,
     else:
         if not only_val:
             print(data_path)
-            train_set = custom_class(root=data_path, train=True, 
-                                        download=True, transform=transform_train)
-        test_set = custom_class(root=data_path, train=False, 
-                                    download=True, transform=transform_test)
+            train_set = custom_class(root=data_path, train=True,
+                                     download=True, transform=transform_train)
+        test_set = custom_class(root=data_path, train=False,
+                                download=True, transform=transform_test)
 
     if subset is not None:
         assert not only_val
@@ -72,7 +68,7 @@ def make_loaders(workers, batch_size, transforms, data_path, data_aug=True,
             train_sample_count = train_set.__len__()
         if subset_type == 'rand':
             rng = np.random.RandomState(seed)
-            subset = rng.choice(list(range(train_sample_count)), size=subset+subset_start, replace=False)
+            subset = rng.choice(list(range(train_sample_count)), size=subset + subset_start, replace=False)
             subset = subset[subset_start:]
         elif subset_type == 'first':
             subset = np.arange(subset_start, subset_start + subset)
@@ -88,7 +84,7 @@ def make_loaders(workers, batch_size, transforms, data_path, data_aug=True,
             test_sample_count = test_set.__len__()
         if subset_type_val == 'rand':
             rng = np.random.RandomState(seed)
-            subset_val = rng.choice(list(range(test_sample_count)), size=subset_val+subset_start_val, replace=False)
+            subset_val = rng.choice(list(range(test_sample_count)), size=subset_val + subset_start_val, replace=False)
             subset_val = subset_val[subset_start_val:]
         elif subset_type_val == 'first':
             subset_val = np.arange(subset_start_val, subset_start_val + subset_val)
@@ -98,18 +94,19 @@ def make_loaders(workers, batch_size, transforms, data_path, data_aug=True,
         test_set = Subset(test_set, subset_val)
 
     if not only_val:
-        train_loader = DataLoader(train_set, batch_size=batch_size, 
-            shuffle=shuffle_train, num_workers=workers, pin_memory=True,
-            **dl_kwargs)
+        train_loader = DataLoader(train_set, batch_size=batch_size,
+                                  shuffle=shuffle_train, num_workers=workers, pin_memory=True,
+                                  **dl_kwargs)
 
     test_loader = DataLoader(test_set, batch_size=val_batch_size,
-            shuffle=shuffle_val, num_workers=workers, pin_memory=True,
-            **dl_kwargs)
+                             shuffle=shuffle_val, num_workers=workers, pin_memory=True,
+                             **dl_kwargs)
 
     if only_val:
         return None, test_loader
 
     return train_loader, test_loader
+
 
 ## loader wrapper (for adding custom functions to dataloader)
 class PerEpochLoader:
@@ -118,6 +115,7 @@ class PerEpochLoader:
     in memory, but recomputes it from scratch every epoch, instead of just once
     at initialization.
     '''
+
     def __init__(self, loader, func, do_tqdm=True):
         self.orig_loader = loader
         self.func = func
@@ -127,8 +125,8 @@ class PerEpochLoader:
 
     def compute_loader(self):
         return TransformedLoader(self.orig_loader, self.func, None,
-                    self.orig_loader.num_workers, self.orig_loader.batch_size,
-                    do_tqdm=self.do_tqdm)
+                                 self.orig_loader.num_workers, self.orig_loader.batch_size,
+                                 do_tqdm=self.do_tqdm)
 
     def __len__(self):
         return len(self.orig_loader)
@@ -148,6 +146,7 @@ class PerEpochLoader:
             raise StopIteration
 
         return self.func(im, targ)
+
 
 class LambdaLoader:
     '''
@@ -201,9 +200,10 @@ class LambdaLoader:
     def __getattr__(self, attr):
         return getattr(self.data_loader, attr)
 
-def TransformedLoader(loader, func, transforms, workers=None, 
-        batch_size=None, do_tqdm=False, augment=False, fraction=1.0, 
-        dl_kwargs={}):
+
+def TransformedLoader(loader, func, transforms, workers=None,
+                      batch_size=None, do_tqdm=False, augment=False, fraction=1.0,
+                      dl_kwargs={}):
     '''
     This is a function that allows one to apply any given (fixed) 
     transformation to the output from the loader *once*. 
@@ -258,12 +258,12 @@ def TransformedLoader(loader, func, transforms, workers=None,
     for i, (im, targ) in it:
         new_im, new_targ = func(im, targ)
         if augment or (i / float(total_len) > fraction):
-              new_ims.append(im.cpu())
-              new_targs.append(targ.cpu())
+            new_ims.append(im.cpu())
+            new_targs.append(targ.cpu())
         if i / float(total_len) <= fraction:
             new_ims.append(new_im.cpu())
             new_targs.append(new_targ.cpu())
 
     dataset = folder.TensorDataset(ch.cat(new_ims, 0), ch.cat(new_targs, 0), transform=transforms)
-    return ch.utils.data.DataLoader(dataset, num_workers=workers, 
+    return ch.utils.data.DataLoader(dataset, num_workers=workers,
                                     batch_size=batch_size, **dl_kwargs)

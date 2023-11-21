@@ -174,6 +174,7 @@ class FeatureDictNet(nn.ModuleDict):
             vs select element [0]
         flatten_sequential (bool): whether to flatten sequential modules assigned to model
     """
+
     def __init__(
             self, model,
             out_indices=(0, 1, 2, 3, 4), out_map=None, feature_concat=False, flatten_sequential=False):
@@ -221,6 +222,7 @@ class FeatureListNet(FeatureDictNet):
     See docstring for FeatureDictNet above, this class exists only to appease Torchscript typing constraints.
     In eager Python we could have returned List[Tensor] vs Dict[id, Tensor] based on a member bool.
     """
+
     def __init__(
             self, model,
             out_indices=(0, 1, 2, 3, 4), out_map=None, feature_concat=False, flatten_sequential=False):
@@ -245,6 +247,7 @@ class FeatureHookNet(nn.ModuleDict):
 
     FIXME this does not currently work with Torchscript, see FeatureHooks class
     """
+
     def __init__(
             self, model,
             out_indices=(0, 1, 2, 3, 4), out_map=None, out_as_dict=False, no_rewrite=False,

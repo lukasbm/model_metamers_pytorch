@@ -1,6 +1,6 @@
-import torch
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
+
 from .custom_modules import SequentialWithArgs, FakeReLU
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
@@ -29,7 +29,7 @@ def conv1x1(in_planes, out_planes, stride=1):
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, inplanes, planes, stride=1, 
+    def __init__(self, inplanes, planes, stride=1,
                  downsample=None, last_block=False):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
@@ -64,10 +64,11 @@ class BasicBlock(nn.Module):
             return FakeReLU.apply(out)
         return self.relu(out)
 
+
 class Bottleneck(nn.Module):
     expansion = 4
 
-    def __init__(self, inplanes, planes, stride=1, 
+    def __init__(self, inplanes, planes, stride=1,
                  downsample=None, last_block=False):
         super(Bottleneck, self).__init__()
         self.conv1 = conv1x1(inplanes, planes)
@@ -105,6 +106,7 @@ class Bottleneck(nn.Module):
             return FakeReLU.apply(out)
 
         return self.relu(out)
+
 
 class ResNet(nn.Module):
     def __init__(self, block, layers, num_classes=1000, zero_init_residual=False):
@@ -151,7 +153,7 @@ class ResNet(nn.Module):
         layers.append(block(self.inplanes, planes, stride, downsample))
         self.inplanes = planes * block.expansion
         for b in range(1, blocks):
-            if b==(blocks-1):
+            if b == (blocks - 1):
                 layers.append(block(self.inplanes, planes, last_block=True))
             else:
                 layers.append(block(self.inplanes, planes))
@@ -159,12 +161,12 @@ class ResNet(nn.Module):
         return SequentialWithArgs(*layers)
 
     def forward(self, x, with_latent=False, fake_relu=False, no_relu=False):
-        del no_relu # no longer does anything in this code
+        del no_relu  # no longer does anything in this code
         all_outputs = {}
         all_outputs['input_after_preproc'] = x
         x = self.conv1(x)
-        all_outputs['conv1'] = x 
-        x = self.bn1(x) 
+        all_outputs['conv1'] = x
+        x = self.bn1(x)
         all_outputs['bn1'] = x
         # include fake_relu in latent representation (will increase model memory)
         if fake_relu and with_latent:
@@ -199,10 +201,11 @@ class ResNet(nn.Module):
         pre_out = x.view(x.size(0), -1)
         final = self.fc(pre_out)
         all_outputs['final'] = final
-        
+
         if with_latent:
             return final, pre_out, all_outputs
         return final
+
 
 def resnet18(pretrained=False, **kwargs):
     """Constructs a ResNet-18 model.

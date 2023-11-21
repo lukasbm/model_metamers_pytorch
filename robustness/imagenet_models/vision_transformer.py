@@ -16,10 +16,10 @@ Hacked together by / Copyright 2020, Ross Wightman
 # Updated by jfeather: 
 Architecture (and above docstring) modified from https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
 """
-import math
 import logging
-from functools import partial
+import math
 from collections import OrderedDict
+from functools import partial
 from typing import Optional
 
 import torch
@@ -27,8 +27,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint
 
-from .timm_transformer_helpers.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, IMAGENET_INCEPTION_MEAN, IMAGENET_INCEPTION_STD
-from .timm_transformer_helpers.models.helpers import build_model_with_cfg, resolve_pretrained_cfg, named_apply, adapt_input_conv, checkpoint_seq
+from .timm_transformer_helpers.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD, IMAGENET_INCEPTION_MEAN, \
+    IMAGENET_INCEPTION_STD
+from .timm_transformer_helpers.models.helpers import build_model_with_cfg, resolve_pretrained_cfg, named_apply, \
+    adapt_input_conv, checkpoint_seq
 from .timm_transformer_helpers.models.layers import PatchEmbed, Mlp, DropPath, trunc_normal_, lecun_normal_
 from .timm_transformer_helpers.models.registry import register_model
 
@@ -88,7 +90,7 @@ default_cfgs = {
             'B_8-i21k-300ep-lr_0.001-aug_medium1-wd_0.1-do_0.0-sd_0.0--imagenet2012-steps_20k-lr_0.01-res_224.npz'),
     'vit_large_patch32_224': _cfg(
         url='',  # no official model weights for this combo, only for in21k
-        ),
+    ),
     'vit_large_patch32_384': _cfg(
         url='https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-vitjx/jx_vit_large_p32_384-9b920ba8.pth',
         input_size=(3, 384, 384), crop_pct=1.0),
@@ -104,7 +106,6 @@ default_cfgs = {
     'vit_huge_patch14_224': _cfg(url=''),
     'vit_giant_patch14_224': _cfg(url=''),
     'vit_gigantic_patch14_224': _cfg(url=''),
-
 
     # patch models, imagenet21k (weights from official Google JAX impl)
     'vit_tiny_patch16_224_in21k': _cfg(
@@ -156,7 +157,6 @@ default_cfgs = {
         url='https://dl.fbaipublicfiles.com/dino/dino_vitbase8_pretrain/dino_vitbase8_pretrain.pth',
         mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD, num_classes=0),
 
-
     # ViT ImageNet-21K-P pretraining by MILL
     'vit_base_patch16_224_miil_in21k': _cfg(
         url='https://miil-public-eu.oss-eu-central-1.aliyuncs.com/model-zoo/ImageNet_21K_P/models/timm/vit_base_patch16_224_in21k_miil.pth',
@@ -196,7 +196,7 @@ class Attention(nn.Module):
     def forward(self, x):
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
-        q, k, v = qkv.unbind(0)   # make torchscript happy (cannot use tensor as tuple)
+        q, k, v = qkv.unbind(0)  # make torchscript happy (cannot use tensor as tuple)
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
         attn = attn.softmax(dim=-1)
@@ -444,7 +444,7 @@ class VisionTransformer(nn.Module):
     def forward_features(self, x, with_latent=False):
         x = self.patch_embed(x)
         if with_latent:
-            all_outputs = {'patch_embed':x}
+            all_outputs = {'patch_embed': x}
         x = self._pos_embed(x)
         if with_latent:
             all_outputs['pos_embed'] = x
@@ -454,9 +454,9 @@ class VisionTransformer(nn.Module):
             for layer_idx, layer_func in enumerate(self.blocks):
                 x = layer_func(x)
                 if with_latent:
-                    all_outputs['block_%d'%layer_idx] = x
-#                 x = self.blocks(x)
-        if with_latent: # TODO: get intermediate blocks
+                    all_outputs['block_%d' % layer_idx] = x
+        #                 x = self.blocks(x)
+        if with_latent:  # TODO: get intermediate blocks
             all_outputs['blocks_end'] = x
         x = self.norm(x)
         if with_latent:
@@ -476,19 +476,20 @@ class VisionTransformer(nn.Module):
     def forward(self, x, with_latent=False, no_relu=False, fake_relu=False):
         del no_relu
         if with_latent:
-            all_outputs = {'input_after_preproc':x}
+            all_outputs = {'input_after_preproc': x}
             x, all_outputs_features = self.forward_features(x, with_latent=with_latent)
             all_outputs.update(all_outputs_features)
         else:
-            x = self.forward_features(x, with_latent=with_latent)            
+            x = self.forward_features(x, with_latent=with_latent)
         x = self.forward_head(x)
         if with_latent:
             all_outputs['final'] = x
-        
+
         if with_latent:
             return x, None, all_outputs
         else:
             return x
+
 
 def init_weights_vit_timm(module: nn.Module, name: str = ''):
     """ ViT weight initialization, original timm impl (for reproducibility) """
@@ -861,7 +862,7 @@ def vit_huge_patch14_224(pretrained=False, **kwargs):
 def vit_giant_patch14_224(pretrained=False, **kwargs):
     """ ViT-Giant model (ViT-g/14) from `Scaling Vision Transformers` - https://arxiv.org/abs/2106.04560
     """
-    model_kwargs = dict(patch_size=14, embed_dim=1408, mlp_ratio=48/11, depth=40, num_heads=16, **kwargs)
+    model_kwargs = dict(patch_size=14, embed_dim=1408, mlp_ratio=48 / 11, depth=40, num_heads=16, **kwargs)
     model = _create_vision_transformer('vit_giant_patch14_224', pretrained=pretrained, **model_kwargs)
     return model
 
@@ -870,7 +871,7 @@ def vit_giant_patch14_224(pretrained=False, **kwargs):
 def vit_gigantic_patch14_224(pretrained=False, **kwargs):
     """ ViT-Gigantic model (ViT-G/14) from `Scaling Vision Transformers` - https://arxiv.org/abs/2106.04560
     """
-    model_kwargs = dict(patch_size=14, embed_dim=1664, mlp_ratio=64/13, depth=48, num_heads=16, **kwargs)
+    model_kwargs = dict(patch_size=14, embed_dim=1664, mlp_ratio=64 / 13, depth=48, num_heads=16, **kwargs)
     model = _create_vision_transformer('vit_gigantic_patch14_224', pretrained=pretrained, **model_kwargs)
     return model
 

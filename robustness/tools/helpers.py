@@ -1,13 +1,11 @@
+import shutil
+
+import dill
 import torch as ch
 
-import shutil
-import dill
-import os
-from subprocess import Popen, PIPE
-import pandas as pd
-from PIL import Image
-from . import constants
 from robustness.audio_functions import audio_transforms
+from . import constants
+
 
 def has_attr(obj, k):
     """Checks both that obj.k exists and is not equal to None"""
@@ -18,22 +16,23 @@ def has_attr(obj, k):
     except AttributeError as e:
         return False
 
+
 def calc_est_grad(func, x, y, rad, num_samples):
     B, *_ = x.shape
-    Q = num_samples//2
+    Q = num_samples // 2
     N = len(x.shape) - 1
     with ch.no_grad():
         # Q * B * C * H * W
-        extender = [1]*N
+        extender = [1] * N
         queries = x.repeat(Q, *extender)
         noise = ch.randn_like(queries)
-        norm = noise.view(B*Q, -1).norm(dim=-1).view(B*Q, *extender)
+        norm = noise.view(B * Q, -1).norm(dim=-1).view(B * Q, *extender)
         noise = noise / norm
         noise = ch.cat([-noise, noise])
         queries = ch.cat([queries, queries])
         y_shape = [1] * (len(y.shape) - 1)
-        l = func(queries + rad * noise, y.repeat(2*Q, *y_shape)).view(-1, *extender) 
-        grad = (l.view(2*Q, B, *extender) * noise.view(2*Q, B, *noise.shape[1:])).mean(dim=0)
+        l = func(queries + rad * noise, y.repeat(2 * Q, *y_shape)).view(-1, *extender)
+        grad = (l.view(2 * Q, B, *extender) * noise.view(2 * Q, B, *noise.shape[1:])).mean(dim=0)
     return grad
 
 
@@ -54,8 +53,10 @@ def calc_fadein_eps(epoch, fadein_length, eps):
         eps = eps * min(float(epoch) / fadein_length, 1)
     return eps
 
+
 def ckpt_at_epoch(num):
     return '%s_%s' % (num, constants.CKPT_NAME)
+
 
 def accuracy(output, target, topk=(1,), exact=False):
     """
@@ -79,7 +80,7 @@ def accuracy(output, target, topk=(1,), exact=False):
         if len(target.shape) > 1:
             assert output.shape == target.shape, \
                 "Detected binary classification but output shape != target shape"
-            return [ch.round(ch.sigmoid(output)).eq(ch.round(target)).float().mean()], [-1.0] 
+            return [ch.round(ch.sigmoid(output)).eq(ch.round(target)).float().mean()], [-1.0]
 
         maxk = max(topk)
         batch_size = target.size(0)
@@ -101,20 +102,22 @@ def accuracy(output, target, topk=(1,), exact=False):
         else:
             return res_exact
 
+
 class GraphPreprocessing(ch.nn.Module):
     '''
     Performs preprocessing of the input that should be included in the 
     graph for adversarial generation. Ie Input Normalization and Audio
     Representation Conversion.
     '''
+
     def __init__(self, dataset):
         super(GraphPreprocessing, self).__init__()
         self.normalize = InputNormalize(dataset.mean, dataset.std,
-                                       dataset.min_value, dataset.max_value)
+                                        dataset.min_value, dataset.max_value)
         if hasattr(dataset, 'audio_kwargs'):
             self.do_audio_preproc = True
-            self.audio_preproc = AudioInputRepresentation(**dataset.audio_kwargs)# .cuda()
-        else: 
+            self.audio_preproc = AudioInputRepresentation(**dataset.audio_kwargs)  # .cuda()
+        else:
             self.do_audio_preproc = False
 
     def forward(self, x):
@@ -122,7 +125,7 @@ class GraphPreprocessing(ch.nn.Module):
         if self.do_audio_preproc:
             x = self.audio_preproc(x)
         return x
-        
+
 
 class InputNormalize(ch.nn.Module):
     '''
@@ -130,6 +133,7 @@ class InputNormalize(ch.nn.Module):
     mean and standard deviation (user-specified), clipped at the 
     possible min and max of the input
     '''
+
     def __init__(self, new_mean, new_std, min_value, max_value):
         super(InputNormalize, self).__init__()
         new_std = new_std[..., None, None]
@@ -138,12 +142,12 @@ class InputNormalize(ch.nn.Module):
         self.register_buffer("new_mean", new_mean)
         self.register_buffer("new_std", new_std)
 
-        self.min_value=min_value
-        self.max_value=max_value
+        self.min_value = min_value
+        self.max_value = max_value
 
     def forward(self, x):
         x = ch.clamp(x, self.min_value, self.max_value)
-        x_normalized = (x - self.new_mean)/self.new_std
+        x_normalized = (x - self.new_mean) / self.new_std
         return x_normalized
 
 
@@ -153,6 +157,7 @@ class AudioInputRepresentation(ch.nn.Module):
     representation for training, ie using a mel spectrogram or a 
     cochleagram. 
     '''
+
     def __init__(self, rep_type, rep_kwargs, compression_type, compression_kwargs):
         super(AudioInputRepresentation, self).__init__()
         self.rep_type = rep_type
@@ -163,10 +168,11 @@ class AudioInputRepresentation(ch.nn.Module):
         # Functions for the representations are defined in the audio_transforms 
         # library, but we only use the foreground audio here. 
         self.full_rep = audio_transforms.AudioToAudioRepresentation(rep_type,
-                                                                    rep_kwargs, 
+                                                                    rep_kwargs,
                                                                     compression_type,
                                                                     compression_kwargs)
-    def forward(self, x): 
+
+    def forward(self, x):
         x, _ = self.full_rep(x, None)
         return x
 
@@ -208,13 +214,16 @@ class DataPrefetcher():
             if type(self.stop_after) is int and (count > self.stop_after):
                 break
 
+
 def save_checkpoint(state, is_best, filename):
     ch.save(state, filename, pickle_module=dill)
     if is_best:
         shutil.copyfile(filename, filename + constants.BEST_APPEND)
 
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 
@@ -229,6 +238,7 @@ class AverageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
+
 
 # ImageNet label mappings
 def get_label_mapping(dataset_name, ranges):
@@ -245,9 +255,10 @@ def get_label_mapping(dataset_name, ranges):
 
     return label_mapping
 
+
 def restricted_label_mapping(classes, class_to_idx, ranges):
     range_sets = [
-        set(range(s, e+1)) for s,e in ranges
+        set(range(s, e + 1)) for s, e in ranges
     ]
 
     # add wildcard
@@ -261,8 +272,8 @@ def restricted_label_mapping(classes, class_to_idx, ranges):
     filtered_classes = list(mapping.keys()).sort()
     return filtered_classes, mapping
 
-def custom_label_mapping(classes, class_to_idx, ranges):
 
+def custom_label_mapping(classes, class_to_idx, ranges):
     mapping = {}
     for class_name, idx in class_to_idx.items():
         for new_idx, range_set in enumerate(ranges):

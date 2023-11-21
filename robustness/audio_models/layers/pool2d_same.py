@@ -1,10 +1,10 @@
 """ AvgPool2d w/ Same Padding
 Hacked together by Ross Wightman
 """
-import torch
+from typing import List
+
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Tuple, Optional
 
 from .helpers import tup_pair
 from .padding import pad_same, get_padding_value
@@ -20,6 +20,7 @@ def avg_pool2d_same(x, kernel_size: List[int], stride: List[int], padding: List[
 class AvgPool2dSame(nn.AvgPool2d):
     """ Tensorflow like 'SAME' wrapper for 2D average pooling
     """
+
     def __init__(self, kernel_size: int, stride=None, padding=0, ceil_mode=False, count_include_pad=True):
         kernel_size = tup_pair(kernel_size)
         stride = tup_pair(stride)
@@ -40,6 +41,7 @@ def max_pool2d_same(
 class MaxPool2dSame(nn.MaxPool2d):
     """ Tensorflow like 'SAME' wrapper for 2D max pooling
     """
+
     def __init__(self, kernel_size: int, stride=None, padding=0, dilation=1, ceil_mode=False, count_include_pad=True):
         kernel_size = tup_pair(kernel_size)
         stride = tup_pair(stride)

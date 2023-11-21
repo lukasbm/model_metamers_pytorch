@@ -3,14 +3,17 @@ from torch import nn as nn
 
 try:
     from inplace_abn.functions import inplace_abn, inplace_abn_sync
+
     has_iabn = True
 except ImportError:
     has_iabn = False
+
 
     def inplace_abn(x, weight, bias, running_mean, running_var,
                     training=True, momentum=0.1, eps=1e-05, activation="leaky_relu", activation_param=0.01):
         raise ImportError(
             "Please install InplaceABN:'pip install git+https://github.com/mapillary/inplace_abn.git@v1.0.12'")
+
 
     def inplace_abn_sync(**kwargs):
         inplace_abn(**kwargs)

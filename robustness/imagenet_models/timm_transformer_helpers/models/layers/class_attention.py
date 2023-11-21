@@ -1,5 +1,6 @@
 import torch.nn as nn
 
+
 class ClassAttn(nn.Module):
     # taken from https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
     # with slight modifications to do CA

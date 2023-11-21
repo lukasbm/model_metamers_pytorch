@@ -12,7 +12,7 @@ This allows swapping with alternative layers that are natively both norm + act s
 
 Hacked together by / Copyright 2022 Ross Wightman
 """
-from typing import Union, List, Optional, Any
+from typing import Union, List
 
 import torch
 from torch import nn as nn
@@ -30,6 +30,7 @@ class BatchNormAct2d(nn.BatchNorm2d):
     compatible with weights trained with separate bn, act. This is why we inherit from BN
     instead of composing it as a .bn member.
     """
+
     def __init__(
             self,
             num_features,

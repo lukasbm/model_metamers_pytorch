@@ -7,6 +7,7 @@ from typing import Union
 
 import torch
 from torch.hub import HASH_REGEX, download_url_to_file, urlparse
+
 try:
     from torch.hub import get_dir
 except ImportError:
@@ -15,6 +16,7 @@ except ImportError:
 # from timm import __version__
 try:
     from huggingface_hub import HfApi, HfFolder, Repository, hf_hub_download, hf_hub_url
+
     hf_hub_download = partial(hf_hub_download, library_name="timm")
     _has_hf_hub = True
 except ImportError:
@@ -119,15 +121,15 @@ def save_for_hf(model, save_directory, model_config=None):
 
 
 def push_to_hf_hub(
-    model,
-    local_dir,
-    repo_namespace_or_url=None,
-    commit_message='Add model',
-    use_auth_token=True,
-    git_email=None,
-    git_user=None,
-    revision=None,
-    model_config=None,
+        model,
+        local_dir,
+        repo_namespace_or_url=None,
+        commit_message='Add model',
+        use_auth_token=True,
+        git_email=None,
+        git_user=None,
+        revision=None,
+        model_config=None,
 ):
     if repo_namespace_or_url:
         repo_owner, repo_name = repo_namespace_or_url.rstrip('/').split('/')[-2:]

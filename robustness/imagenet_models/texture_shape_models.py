@@ -11,11 +11,14 @@ import os
 
 import torch
 from torch.utils import model_zoo
+
+from .alexnet import alexnet
 from .resnet import resnet50
 from .vgg import vgg16
-from .alexnet import alexnet
 
-__all__ = ['texture_shape_alexnet_trained_on_SIN', 'texture_shape_resnet50_trained_on_SIN', 'texture_shape_vgg16_trained_on_SIN', 'texture_shape_resnet50_trained_on_SIN_and_IN', 'texture_shape_resnet50_trained_on_SIN_and_IN_then_finetuned_on_IN']
+__all__ = ['texture_shape_alexnet_trained_on_SIN', 'texture_shape_resnet50_trained_on_SIN',
+           'texture_shape_vgg16_trained_on_SIN', 'texture_shape_resnet50_trained_on_SIN_and_IN',
+           'texture_shape_resnet50_trained_on_SIN_and_IN_then_finetuned_on_IN']
 
 model_urls = {
     'resnet50_trained_on_SIN': 'https://bitbucket.org/robert_geirhos/texture-vs-shape-pretrained-models/raw/6f41d2e86fc60566f78de64ecff35cc61eb6436f/resnet50_train_60_epochs-c8e5653e.pth.tar',
@@ -25,6 +28,7 @@ model_urls = {
     'alexnet_trained_on_SIN': 'https://bitbucket.org/robert_geirhos/texture-vs-shape-pretrained-models/raw/0008049cd10f74a944c6d5e90d4639927f8620ae/alexnet_train_60_epochs_lr0.001-b4aa5238.pth.tar',
 }
 
+
 def remap_checkpoint_keys(state_dict):
     old_keys = list(state_dict.keys())
     for key in old_keys:
@@ -33,7 +37,7 @@ def remap_checkpoint_keys(state_dict):
             print(new_key)
             state_dict[new_key] = state_dict.pop(key)
     return state_dict
-        
+
 
 def load_model(model_name):
     if "resnet50" in model_name:
@@ -61,21 +65,26 @@ def load_model(model_name):
     model.load_state_dict(state_dict)
     return model
 
+
 def texture_shape_alexnet_trained_on_SIN(**kwargs):
     model = load_model('alexnet_trained_on_SIN')
     return model
+
 
 def texture_shape_resnet50_trained_on_SIN(**kwargs):
     model = load_model('resnet50_trained_on_SIN')
     return model
 
+
 def texture_shape_resnet50_trained_on_SIN_and_IN(**kwargs):
     model = load_model('resnet50_trained_on_SIN_and_IN')
     return model
 
+
 def texture_shape_resnet50_trained_on_SIN_and_IN_then_finetuned_on_IN(**kwargs):
     model = load_model('resnet50_trained_on_SIN_and_IN_then_finetuned_on_IN')
     return model
+
 
 def texture_shape_vgg16_trained_on_SIN(**kwargs):
     model = load_model('vgg16_trained_on_SIN')

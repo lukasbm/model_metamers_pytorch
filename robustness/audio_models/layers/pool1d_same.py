@@ -1,13 +1,13 @@
 """ AvgPool2d w/ Same Padding
 Hacked together by Ross Wightman
 """
-import torch
+from typing import List
+
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Tuple, Optional
 
 from .helpers import tup_pair
-from .padding import pad_same, get_padding_value, pad_same1d
+from .padding import get_padding_value, pad_same1d
 
 
 def avg_pool1d_same(x, kernel_size: List[int], stride: List[int], padding: List[int] = (0, 0),
@@ -16,12 +16,13 @@ def avg_pool1d_same(x, kernel_size: List[int], stride: List[int], padding: List[
     x = pad_same1d(x, kernel_size, stride)
     kernel_size = kernel_size[0]
     stride = stride[0]
-    return F.avg_pool1d(x, kernel_size, stride, ( 0), ceil_mode, count_include_pad)
+    return F.avg_pool1d(x, kernel_size, stride, (0), ceil_mode, count_include_pad)
 
 
 class AvgPool1dSame(nn.AvgPool1d):
     """ Tensorflow like 'SAME' wrapper for 1D average pooling
     """
+
     def __init__(self, kernel_size: int, stride=None, padding=0, ceil_mode=False, count_include_pad=True):
         kernel_size = tup_pair(kernel_size)
         stride = tup_pair(stride)
@@ -33,7 +34,7 @@ class AvgPool1dSame(nn.AvgPool1d):
 
 
 def max_pool1d_same(
-         x, kernel_size: List[int], stride: List[int], padding: List[int] = (0, 0),
+        x, kernel_size: List[int], stride: List[int], padding: List[int] = (0, 0),
         dilation: List[int] = (1, 1), ceil_mode: bool = False):
     x = pad_same1d(x, kernel_size, stride, value=-float('inf'))
     kernel_size = kernel_size[0]
@@ -44,6 +45,7 @@ def max_pool1d_same(
 class MaxPool1dSame(nn.MaxPool1d):
     """ Tensorflow like 'SAME' wrapper for 1D max pooling
     """
+
     def __init__(self, kernel_size: int, stride=None, padding=0, dilation=1, ceil_mode=False, count_include_pad=True):
         kernel_size = tup_pair(kernel_size)
         stride = tup_pair(stride)

@@ -2,8 +2,9 @@
 
 Hacked together by / Copyright 2021 Ross Wightman
 """
-import torch
 from functools import partial
+
+import torch
 
 from .bottleneck_attn import BottleneckAttn
 from .cbam import CbamModule, LightCbamModule

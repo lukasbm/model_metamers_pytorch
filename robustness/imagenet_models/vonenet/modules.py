@@ -1,11 +1,12 @@
-
 import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
+
 from .utils import gabor_kernel
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class FakeReLU(torch.autograd.Function):
     @staticmethod
@@ -16,20 +17,23 @@ class FakeReLU(torch.autograd.Function):
     def backward(ctx, grad_output):
         return grad_output
 
+
 class FakeReLUM(nn.Module):
     def forward(self, x):
         return FakeReLU.apply(x)
+
 
 class SequentialWithArgs(torch.nn.Sequential):
     def forward(self, input, *args, **kwargs):
         vs = list(self._modules.values())
         l = len(vs)
         for i in range(l):
-            if i == l-1:
+            if i == l - 1:
                 input = vs[i](input, *args, **kwargs)
             else:
                 input = vs[i](input)
         return input
+
 
 class SequentialWithAllOutput(torch.nn.Sequential):
     def forward(self, input, *args, **kwargs):
@@ -39,7 +43,7 @@ class SequentialWithAllOutput(torch.nn.Sequential):
             for i in range(l):
                 if i == 0:
                     input, _, all_outputs = vs[i](input, *args, **kwargs)
-                elif i == l-1:
+                elif i == l - 1:
                     input, pre_out, all_outputs_new = vs[i](input, *args, **kwargs)
                     all_outputs = self._append_all_outputs(all_outputs, all_outputs_new)
                 else:
@@ -59,9 +63,11 @@ class SequentialWithAllOutput(torch.nn.Sequential):
             all_outputs[key] = all_outputs_new[key]
         return all_outputs
 
+
 class BottleneckVOne(nn.Conv2d):
     """Wrap add additional arguments for the forward pass of the Conv2d layer
     used as a bottleneck for the VOneBlock"""
+
     def forward(self, x, with_latent=False, fake_relu=False, no_relu=None):
         if with_latent:
             all_outputs = {}
@@ -72,6 +78,7 @@ class BottleneckVOne(nn.Conv2d):
         if with_latent:
             return x, None, all_outputs
         return x
+
 
 class Identity(nn.Module):
     def forward(self, x):
@@ -174,7 +181,7 @@ class VOneBlock(nn.Module):
     def gabors_f(self, x):
         s_q0 = self.simple_conv_q0(x)
         s_q1 = self.simple_conv_q1(x)
-        c = self.complex(torch.sqrt(0.00001+ s_q0[:, self.simple_channels:, :, :] ** 2 +
+        c = self.complex(torch.sqrt(0.00001 + s_q0[:, self.simple_channels:, :, :] ** 2 +
                                     s_q1[:, self.simple_channels:, :, :] ** 2) / np.sqrt(2))
         s = self.simple(s_q0[:, 0:self.simple_channels, :, :])
         return self.gabors(self.k_exc * torch.cat((s, c), 1))
@@ -204,19 +211,22 @@ class VOneBlock(nn.Module):
         self.noise_level = noise_level
 
     def fix_noise(self, batch_size=256, seed=None):
-#         noise_mean = torch.zeros(batch_size, self.out_channels, int(self.input_size/self.stride), int(self.input_size/self.stride))
+        #         noise_mean = torch.zeros(batch_size, self.out_channels, int(self.input_size/self.stride), int(self.input_size/self.stride))
         # use broadcasting -- everything in the batch has the same noise. 
         if self.num_stochastic_copies is None:
-            noise_mean = torch.zeros(1, self.out_channels, int(self.input_size/self.stride), int(self.input_size/self.stride))
+            noise_mean = torch.zeros(1, self.out_channels, int(self.input_size / self.stride),
+                                     int(self.input_size / self.stride))
         else:
-            noise_mean = torch.zeros(self.num_stochastic_copies, self.out_channels, int(self.input_size/self.stride), int(self.input_size/self.stride))
+            noise_mean = torch.zeros(self.num_stochastic_copies, self.out_channels, int(self.input_size / self.stride),
+                                     int(self.input_size / self.stride))
         if seed:
             torch.manual_seed(seed)
-        if self.noise_mode == 'gaussian': 
-            self.fixed_noise = torch.distributions.normal.Normal(noise_mean, scale=self.noise_level).rsample().to(device)
+        if self.noise_mode == 'gaussian':
+            self.fixed_noise = torch.distributions.normal.Normal(noise_mean, scale=self.noise_level).rsample().to(
+                device)
         elif self.noise_mode == 'neuronal':
             self.fixed_noise = torch.distributions.normal.Normal(noise_mean, scale=1).rsample().to(device)
-        print(self.fixed_noise[:,0,0,0])
+        print(self.fixed_noise[:, 0, 0, 0])
 
     def unfix_noise(self):
         self.fixed_noise = None

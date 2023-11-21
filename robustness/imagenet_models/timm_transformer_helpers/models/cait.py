@@ -6,22 +6,20 @@ Original code and weights from https://github.com/facebookresearch/deit, copyrig
 
 Modifications and additions for timm hacked together by / Copyright 2021, Ross Wightman
 """
+# from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+import sys
 # Copyright (c) 2015-present, Facebook, Inc.
 # All rights reserved.
-from copy import deepcopy
 from functools import partial
 
 import torch
 import torch.nn as nn
 
-# from timm.data import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-import sys
 sys.path.append('../.')
 from constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from .helpers import build_model_with_cfg, checkpoint_seq
 from .layers import PatchEmbed, Mlp, DropPath, trunc_normal_
 from .registry import register_model
-
 
 __all__ = ['Cait', 'ClassAttn', 'LayerScaleBlockClassAttn', 'LayerScaleBlock', 'TalkingHeadAttn']
 
@@ -295,6 +293,7 @@ class Cait(nn.Module):
                 return len(self.blocks)
             else:
                 return float('inf')
+
         return _matcher
 
     @torch.jit.ignore

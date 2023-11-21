@@ -49,7 +49,7 @@ class SelectiveKernelAttn(nn.Module):
 class SelectiveKernel(nn.Module):
 
     def __init__(self, in_channels, out_channels=None, kernel_size=None, stride=1, dilation=1, groups=1,
-                 rd_ratio=1./16, rd_channels=None, rd_divisor=8, keep_3x3=True, split_input=True,
+                 rd_ratio=1. / 16, rd_channels=None, rd_divisor=8, keep_3x3=True, split_input=True,
                  act_layer=nn.ReLU, norm_layer=nn.BatchNorm2d, aa_layer=None, drop_layer=None):
         """ Selective Kernel Convolution Module
 

@@ -1,24 +1,23 @@
-import torch as ch
-import numpy as np
-import torch.nn as nn
-from torch.optim import SGD, lr_scheduler
-from torchvision.utils import make_grid
-from cox.utils import Parameters
-
-from .tools import helpers
-from .tools.helpers import AverageMeter, calc_fadein_eps, \
-        save_checkpoint, ckpt_at_epoch, has_attr
-from .tools import constants as consts
-import dill 
+import os
 import time
 
+import dill
+import numpy as np
+import torch as ch
+from torch.optim import SGD, lr_scheduler
+from torchvision.utils import make_grid
+
+from .tools import constants as consts
+from .tools import helpers
+from .tools.helpers import AverageMeter, calc_fadein_eps, \
+    ckpt_at_epoch, has_attr
 from .tools.warm_up_scheduler import GradualWarmupScheduler
 
-import os
 if int(os.environ.get("NOTEBOOK_MODE", 0)) == 1:
     from tqdm import tqdm_notebook as tqdm
 else:
     from tqdm import tqdm as tqdm
+
 
 def check_required_args(args, eval_only=False):
     """
@@ -30,9 +29,9 @@ def check_required_args(args, eval_only=False):
     """
     required_args_eval = ["adv_eval"]
     required_args_train = ["epochs", "out_dir", "adv_train",
-        "log_iters", "lr", "momentum", "weight_decay"]
+                           "log_iters", "lr", "momentum", "weight_decay"]
     adv_required_args = ["attack_steps", "eps", "constraint", "use_best",
-                        "eps_fadein_epochs", "attack_lr", "random_restarts"]
+                         "eps_fadein_epochs", "attack_lr", "random_restarts"]
 
     # Generic function for checking all arguments in a list
     def check_args(args_list):
@@ -40,8 +39,10 @@ def check_required_args(args, eval_only=False):
             assert has_attr(args, arg), f"Missing argument {arg}"
 
     # Different required args based on training or eval:
-    if not eval_only: check_args(required_args_train)
-    else: check_args(required_args_eval)
+    if not eval_only:
+        check_args(required_args_train)
+    else:
+        check_args(required_args_eval)
     # More required args if we are robustly training or evaling
     is_adv = bool(args.adv_train) or bool(args.adv_eval)
     if is_adv:
@@ -52,6 +53,7 @@ def check_required_args(args, eval_only=False):
     if has_custom_train and is_adv and not has_custom_adv:
         raise ValueError("Cannot use custom train loss \
             without a custom adversarial loss (see docs)")
+
 
 def make_optimizer_and_schedule(args, model, checkpoint, params):
     """
@@ -76,27 +78,29 @@ def make_optimizer_and_schedule(args, model, checkpoint, params):
     # Make optimizer
     param_list = model.parameters() if params is None else params
     optimizer = SGD(param_list, args.lr, momentum=args.momentum,
-                                weight_decay=args.weight_decay)
+                    weight_decay=args.weight_decay)
     # Make schedule
     schedule = None
     if args.step_lr:
         schedule = lr_scheduler.StepLR(optimizer, step_size=args.step_lr)
     elif args.custom_schedule == 'cyclic':
         eps = args.epochs
-        lr_func = lambda t: np.interp([t], [0, eps*2//5, eps], [0, args.lr, 0])[0]
+        lr_func = lambda t: np.interp([t], [0, eps * 2 // 5, eps], [0, args.lr, 0])[0]
         schedule = lr_scheduler.LambdaLR(optimizer, lr_func)
     elif args.custom_schedule:
         cs = args.custom_schedule
         periods = eval(cs) if type(cs) is str else cs
+
         def lr_func(ep):
             for (milestone, lr) in reversed(periods):
-                if ep > milestone: return lr/args.lr
+                if ep > milestone: return lr / args.lr
             return args.lr
+
         schedule = lr_scheduler.LambdaLR(optimizer, lr_func)
 
-    if args.warm_up_lr:   
-        schedule = GradualWarmupScheduler(optimizer, multiplier=1, 
-                                          total_epoch=1, 
+    if args.warm_up_lr:
+        schedule = GradualWarmupScheduler(optimizer, multiplier=1,
+                                          total_epoch=1,
                                           after_scheduler=schedule)
 
     # Fast-forward the optimizer and the scheduler if resuming
@@ -112,6 +116,7 @@ def make_optimizer_and_schedule(args, model, checkpoint, params):
                 schedule.step()
 
     return optimizer, schedule
+
 
 def eval_model(args, model, loader, store, adv_only=False):
     """
@@ -129,32 +134,32 @@ def eval_model(args, model, loader, store, adv_only=False):
     check_required_args(args, eval_only=True)
     start_time = time.time()
 
-    if store is not None: 
+    if store is not None:
         store.add_table(consts.LOGS_TABLE, consts.LOGS_SCHEMA)
     writer = store.tensorboard if store else None
 
     model = ch.nn.DataParallel(model)
 
     if not adv_only:
-        prec1, nat_loss = _model_loop(args, 'val', loader, 
+        prec1, nat_loss = _model_loop(args, 'val', loader,
                                       model, None, 0, False, writer, store)
     else:
         prec1, nat_loss = float('nan'), float('nan')
 
     adv_prec1, adv_loss = float('nan'), float('nan')
-    if args.adv_eval: 
+    if args.adv_eval:
         args.eps = eval(str(args.eps)) if has_attr(args, 'eps') else None
         args.attack_lr = eval(str(args.attack_lr)) if has_attr(args, 'attack_lr') else None
-        adv_prec1, adv_loss = _model_loop(args, 'val', loader, 
-                                        model, None, 0, True, writer, store)
+        adv_prec1, adv_loss = _model_loop(args, 'val', loader,
+                                          model, None, 0, True, writer, store)
     log_info = {
-        'epoch':0,
-        'nat_prec1':prec1,
-        'adv_prec1':adv_prec1,
-        'nat_loss':nat_loss,
-        'adv_loss':adv_loss,
-        'train_prec1':float('nan'),
-        'train_loss':float('nan'),
+        'epoch': 0,
+        'nat_prec1': prec1,
+        'adv_prec1': adv_prec1,
+        'nat_loss': nat_loss,
+        'adv_loss': adv_loss,
+        'train_prec1': float('nan'),
+        'train_loss': float('nan'),
         'time': time.time() - start_time
     }
 
@@ -162,7 +167,8 @@ def eval_model(args, model, loader, store, adv_only=False):
     if store: store[consts.LOGS_TABLE].append_row(log_info)
     return log_info
 
-def train_model(args, model, loaders, *, checkpoint=None, 
+
+def train_model(args, model, loaders, *, checkpoint=None,
                 store=None, update_params=None):
     """
     Main function for training a model. 
@@ -256,19 +262,19 @@ def train_model(args, model, loaders, *, checkpoint=None,
     """
     # Logging setup
     writer = store.tensorboard if store else None
-    if store is not None: 
+    if store is not None:
         # TODO: Set up the schema so that it makes entries for each of the multitask elements
         if args.custom_train_loss is not None:
-            if (type(args.custom_train_loss.all_loss_weights)==dict):
+            if (type(args.custom_train_loss.all_loss_weights) == dict):
                 store.add_table(consts.LOGS_TABLE, consts.LOGS_SCHEMA_MULTITASK)
             else:
                 store.add_table(consts.LOGS_TABLE, consts.LOGS_SCHEMA)
         else:
             store.add_table(consts.LOGS_TABLE, consts.LOGS_SCHEMA)
         store.add_table(consts.CKPTS_TABLE, consts.CKPTS_SCHEMA)
-    
+
     # Reformat and read arguments
-    check_required_args(args) # Argument sanity check
+    check_required_args(args)  # Argument sanity check
     args.eps = eval(str(args.eps)) if has_attr(args, 'eps') else None
     args.attack_lr = eval(str(args.attack_lr)) if has_attr(args, 'attack_lr') else None
 
@@ -295,21 +301,21 @@ def train_model(args, model, loaders, *, checkpoint=None,
 
     for epoch in range(start_epoch, args.epochs):
         # train for one epoch
-        train_prec1, train_loss = _model_loop(args, 'train', train_loader, 
-                model, opt, epoch, args.adv_train, writer, store)
+        train_prec1, train_loss = _model_loop(args, 'train', train_loader,
+                                              model, opt, epoch, args.adv_train, writer, store)
         last_epoch = (epoch == (args.epochs - 1))
 
         # evaluate on validation set
         sd_info = {
-            'model':model.state_dict(),
-            'optimizer':opt.state_dict(),
-            'schedule':(schedule and schedule.state_dict()),
-            'epoch': epoch+1
+            'model': model.state_dict(),
+            'optimizer': opt.state_dict(),
+            'schedule': (schedule and schedule.state_dict()),
+            'epoch': epoch + 1
         }
 
         def save_checkpoint(filename):
             ckpt_save_path = os.path.join(args.out_dir if not store else \
-                                          store.path, filename)
+                                              store.path, filename)
             ch.save(sd_info, ckpt_save_path, pickle_module=dill)
 
         save_checkpoint('temp_checkpoint')
@@ -321,20 +327,20 @@ def train_model(args, model, loaders, *, checkpoint=None,
         if should_log or last_epoch or should_save_ckpt:
             # log + get best
             with ch.no_grad():
-                prec1, nat_loss = _model_loop(args, 'val', val_loader, model, 
-                        None, epoch, False, writer, store)
+                prec1, nat_loss = _model_loop(args, 'val', val_loader, model,
+                                              None, epoch, False, writer, store)
 
             # loader, model, epoch, input_adv_exs
             should_adv_eval = args.adv_eval or args.adv_train
             adv_val = should_adv_eval and _model_loop(args, 'val', val_loader,
-                    model, None, epoch, True, writer, store)
+                                                      model, None, epoch, True, writer, store)
             adv_prec1, adv_loss = adv_val or (-1.0, -1.0)
 
             # remember best prec@1 and save checkpoint
             our_prec1 = adv_prec1 if args.adv_train else prec1
             if isinstance(our_prec1, dict):
                 print('Best Criteria Not Specified for Multi Task Models')
-                is_best = True # Always set the "best" to be the latest
+                is_best = True  # Always set the "best" to be the latest
                 best_prec1 = our_prec1
             else:
                 is_best = our_prec1 > best_prec1
@@ -344,47 +350,47 @@ def train_model(args, model, loaders, *, checkpoint=None,
             # TODO: make some way to set up the SCHEMA to be dependent on the keys
             if isinstance(prec1, dict) or isinstance(adv_prec1, dict):
                 if isinstance(prec1, dict):
-                    prec1 = '|'.join(['%s:%s'%(p_key, p_value) for p_key, p_value in prec1.items()])
+                    prec1 = '|'.join(['%s:%s' % (p_key, p_value) for p_key, p_value in prec1.items()])
                 if isinstance(adv_prec1, dict):
-                    adv_prec1 = '|'.join(['%s:%s'%(p_key, p_value) for p_key, p_value in adv_prec1.items()])
+                    adv_prec1 = '|'.join(['%s:%s' % (p_key, p_value) for p_key, p_value in adv_prec1.items()])
                 if isinstance(prec1, float):
                     prec1 = str(prec1)
                 if isinstance(adv_prec1, float):
                     adv_prec1 = str(adv_prec1)
-                train_prec1 = '|'.join(['%s:%s'%(p_key, p_value) for p_key, p_value in train_prec1.items()])
+                train_prec1 = '|'.join(['%s:%s' % (p_key, p_value) for p_key, p_value in train_prec1.items()])
 
-#             if isinstance(prec1, dict) or isinstance(adv_prec1, dict):
-#                 # log every checkpoint
-#                 log_info = {
-#                     'epoch':epoch + 1,
-#                     'nat_loss':nat_loss,
-#                     'adv_loss':adv_loss,
-#                     'train_loss':train_loss,
-#                     'time': time.time() - start_time
-#                 }
-#                 if isinstance(prec1, dict):
-#                     for prec_key in prec1.keys():
-#                         log_info['nat_prec1_%s'%prec_key] = prec1[prec_key]
-#                         log_info['train_prec1_%s'%prec_key] = train_prec1[prec_key]
-#                 else:
-#                     log_info['nat_prec1']=prec1
-#                 if isinstance(adv_prec1, dict):
-#                     for prec_key in adv_prec1.keys():
-#                         log_info['adv_prec1_%s'%prec_key] = adv_prec1[prec_key]
-#                         log_info['train_prec1_%s'%prec_key] = train_prec1[prec_key]
-#                 else:
-#                     log_info['adv_prec1']=adv_prec1
-#                         
-#             else:
+            #             if isinstance(prec1, dict) or isinstance(adv_prec1, dict):
+            #                 # log every checkpoint
+            #                 log_info = {
+            #                     'epoch':epoch + 1,
+            #                     'nat_loss':nat_loss,
+            #                     'adv_loss':adv_loss,
+            #                     'train_loss':train_loss,
+            #                     'time': time.time() - start_time
+            #                 }
+            #                 if isinstance(prec1, dict):
+            #                     for prec_key in prec1.keys():
+            #                         log_info['nat_prec1_%s'%prec_key] = prec1[prec_key]
+            #                         log_info['train_prec1_%s'%prec_key] = train_prec1[prec_key]
+            #                 else:
+            #                     log_info['nat_prec1']=prec1
+            #                 if isinstance(adv_prec1, dict):
+            #                     for prec_key in adv_prec1.keys():
+            #                         log_info['adv_prec1_%s'%prec_key] = adv_prec1[prec_key]
+            #                         log_info['train_prec1_%s'%prec_key] = train_prec1[prec_key]
+            #                 else:
+            #                     log_info['adv_prec1']=adv_prec1
+            #
+            #             else:
             # log every checkpoint
             log_info = {
-                'epoch':epoch + 1,
-                'nat_prec1':prec1,
-                'adv_prec1':adv_prec1,
-                'nat_loss':nat_loss,
-                'adv_loss':adv_loss,
-                'train_prec1':train_prec1,
-                'train_loss':train_loss,
+                'epoch': epoch + 1,
+                'nat_prec1': prec1,
+                'adv_prec1': adv_prec1,
+                'nat_loss': nat_loss,
+                'adv_loss': adv_loss,
+                'train_prec1': train_prec1,
+                'train_loss': train_loss,
                 'time': time.time() - start_time
             }
 
@@ -403,6 +409,7 @@ def train_model(args, model, loaders, *, checkpoint=None,
         if has_attr(args, 'epoch_hook'): args.epoch_hook(model, log_info)
 
     return model
+
 
 def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer, store):
     """
@@ -434,17 +441,17 @@ def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer, store):
 
     # Check if the model has multiple losses. If it does then use a multi=task printout
     try:
-        multi_task_loss = (type(args.custom_train_loss.all_loss_weights)==dict)
+        multi_task_loss = (type(args.custom_train_loss.all_loss_weights) == dict)
         multi_task_keys = args.custom_train_loss.all_loss_weights.keys()
     except AttributeError:
         multi_task_loss = False
-   
+
     losses = AverageMeter()
     if multi_task_loss:
         top1 = {task_key: AverageMeter() for task_key \
-                    in args.custom_train_loss.all_loss_weights.keys()}
+                in args.custom_train_loss.all_loss_weights.keys()}
         top5 = {task_key: AverageMeter() for task_key \
-                    in args.custom_train_loss.all_loss_weights.keys()}
+                in args.custom_train_loss.all_loss_weights.keys()}
     else:
         top1 = AverageMeter()
         top5 = AverageMeter()
@@ -458,20 +465,20 @@ def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer, store):
     # If adv training (or evaling), set eps and random_restarts appropriately
     if adv:
         eps = calc_fadein_eps(epoch, args.eps_fadein_epochs, args.eps) \
-                if is_train else args.eps
+            if is_train else args.eps
         random_restarts = 0 if is_train else args.random_restarts
 
     # Custom training criterion
     has_custom_train_loss = has_attr(args, 'custom_train_loss')
     train_criterion = args.custom_train_loss if has_custom_train_loss \
-            else ch.nn.CrossEntropyLoss()
+        else ch.nn.CrossEntropyLoss()
 
     if has_attr(train_criterion, 'loss_type_name'):
         if train_criterion.loss_type_name == 'CTC':
             pass
     else:
         pass
-    
+
     has_custom_adv_loss = has_attr(args, 'custom_adv_loss')
     adv_criterion = args.custom_adv_loss if has_custom_adv_loss else None
 
@@ -490,31 +497,31 @@ def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer, store):
 
     def save_checkpoint(filename):
         ckpt_save_path = os.path.join(args.out_dir if not store else \
-                                      store.path, filename)
+                                          store.path, filename)
         ch.save(sd_info, ckpt_save_path, pickle_module=dill)
 
     iterator = tqdm(enumerate(loader), total=len(loader), dynamic_ncols=False)
 
     for i, (inp, target) in iterator:
-        if i % 2000 == 0: # Save a temporary checkpoint every 2000 steps
+        if i % 2000 == 0:  # Save a temporary checkpoint every 2000 steps
             if is_train:
                 # Make some stuff to save temporary checkpoints during training
                 sd_info = {
-                    'model':model.state_dict(),
-                    'optimizer':opt.state_dict(),
+                    'model': model.state_dict(),
+                    'optimizer': opt.state_dict(),
                     # 'schedule':(schedule and schedule.state_dict()),
                     'epoch': epoch,
                 }
                 sd_info['iteration'] = i
-                save_checkpoint('checkpoint_epoch%d_iter%d.ckpt'%(epoch,i))
-   
-       # measure data loading time
+                save_checkpoint('checkpoint_epoch%d_iter%d.ckpt' % (epoch, i))
+
+        # measure data loading time
         try:
             target = target.cuda(non_blocking=True)
-        except(AttributeError): # Catch a dictionary target
+        except(AttributeError):  # Catch a dictionary target
             for key in list(target.keys()):
                 target[key] = target[key].cuda(non_blocking=True)
-          
+
         output, final_inp = model(inp, target=target, make_adv=adv,
                                   **attack_kwargs)
         loss = train_criterion(output, target)
@@ -530,13 +537,13 @@ def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer, store):
             for output_key, output_value in output.items():
                 model_logits[output_key] = output_value
                 print_target[output_key] = target[output_key]
-#             print_key = 'signal/word_int' # TODO: make this flexible to work with other tasks
-#             model_logits = output[print_key]
-#             print_target = target[print_key]
+        #             print_key = 'signal/word_int' # TODO: make this flexible to work with other tasks
+        #             model_logits = output[print_key]
+        #             print_target = target[print_key]
         else:
             model_logits = output
-            print_target=target
-        
+            print_target = target
+
         # measure accuracy and record loss
         top1_acc = float('nan')
         top5_acc = float('nan')
@@ -553,12 +560,12 @@ def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer, store):
                     maxk = min(5, model_logits[task_key].shape[-1])
                     prec1, prec5 = helpers.accuracy(model_logits[task_key], print_target[task_key], topk=(1, maxk))
                     top1[task_key].update(prec1[0], inp.size(0))
-                    top5[task_key].update(prec5[0], inp.size(0)) 
+                    top5[task_key].update(prec5[0], inp.size(0))
                     top1_acc[task_key] = top1[task_key].avg
                     top5_acc[task_key] = top5[task_key].avg
                 else:
                     top1_acc
-        
+
         else:
             maxk = min(5, model_logits.shape[-1])
             prec1, prec5 = helpers.accuracy(model_logits, print_target, topk=(1, maxk))
@@ -571,48 +578,49 @@ def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer, store):
 
         reg_term = 0.0
         if has_attr(args, "regularizer"):
-            reg_term =  args.regularizer(model, inp, target)
+            reg_term = args.regularizer(model, inp, target)
         loss = loss + reg_term
 
         # compute gradient and do SGD step
         if is_train:
             opt.zero_grad()
             loss.backward()
-            if has_attr(args, "clip_grad_op"): 
+            if has_attr(args, "clip_grad_op"):
                 args.clip_grad_op(model.parameters(), **args.clip_grad_kwargs)
             # Warm up lr for the first few steps
-            if has_attr(args, "warm_up_lr") and (epoch==0) and (i<500):
+            if has_attr(args, "warm_up_lr") and (epoch == 0) and (i < 500):
                 # In the first 500 steps of training warm up the learning rate
-                for g in opt.param_groups:               
-                    new_lr = g['initial_lr'] / (500-i)
+                for g in opt.param_groups:
+                    new_lr = g['initial_lr'] / (500 - i)
                     g['lr'] = new_lr
             opt.step()
         elif adv and i == 0 and writer:
             # add some examples to the tensorboard
             nat_grid = make_grid(inp[:15, ...])
             adv_grid = make_grid(final_inp[:15, ...])
-            if len(inp.shape)==4:
+            if len(inp.shape) == 4:
                 try:
                     writer.add_image('Nat input', nat_grid, epoch)
                     writer.add_image('Adv input', adv_grid, epoch)
                 except:
                     print('Adv not type that can be written to tensorboard')
-            elif len(inp.shape)==3:
+            elif len(inp.shape) == 3:
                 print('TODO: make writer for audio')
 
         # ITERATOR
         if isinstance(top1_acc, dict):
             task_string = ['{task_key} | {0}1 {top1_acc:.3f} | '
-                            '{0}5 {top5_acc:.3f} |'.format(prec, top1_acc=top1_acc[task_key],
-                            top5_acc=top5_acc[task_key], task_key=task_key) for task_key in top1_acc.keys()]
+                           '{0}5 {top5_acc:.3f} |'.format(prec, top1_acc=top1_acc[task_key],
+                                                          top5_acc=top5_acc[task_key], task_key=task_key) for task_key
+                           in top1_acc.keys()]
             desc = ('{2} Epoch:{0} | Loss {loss.avg:.4f} | '
                     '{1} | Reg term: {reg} |'.format(epoch, ''.join(task_string),
-                    loop_msg, loss=losses, reg=reg_term))
+                                                     loop_msg, loss=losses, reg=reg_term))
         else:
             desc = ('{2} Epoch:{0} | Loss {loss.avg:.4f} | '
                     '{1}1 {top1_acc:.3f} | {1}5 {top5_acc:.3f} | '
-                    'Reg term: {reg} ||'.format( epoch, prec, loop_msg, 
-                    loss=losses, top1_acc=top1_acc, top5_acc=top5_acc, reg=reg_term))
+                    'Reg term: {reg} ||'.format(epoch, prec, loop_msg,
+                                                loss=losses, top1_acc=top1_acc, top5_acc=top5_acc, reg=reg_term))
 
         # USER-DEFINED HOOK
         if has_attr(args, 'iteration_hook'):
@@ -628,14 +636,13 @@ def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer, store):
         for d, v in zip(descs, vals):
             if isinstance(v, dict):
                 for v_key, v_value in v.items():
-                    writer.add_scalar('_'.join([prec_type, loop_type, d, v_key]), 
+                    writer.add_scalar('_'.join([prec_type, loop_type, d, v_key]),
                                       v_value.avg, epoch)
             else:
                 writer.add_scalar('_'.join([prec_type, loop_type, d]), v.avg,
                                   epoch)
 
     if isinstance(top1, dict):
-        return {top1_key:top1_value.avg for top1_key, top1_value in top1.items()}, losses.avg
+        return {top1_key: top1_value.avg for top1_key, top1_value in top1.items()}, losses.avg
     else:
         return top1.avg, losses.avg
-

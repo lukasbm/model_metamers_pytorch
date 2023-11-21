@@ -25,6 +25,7 @@ class SEModule(nn.Module):
         * global max pooling can be added to the squeeze aggregation
         * customizable activation, normalization, and gate layer
     """
+
     def __init__(
             self, channels, rd_ratio=1. / 16, rd_channels=None, rd_divisor=8, add_maxpool=False,
             bias=True, act_layer=nn.ReLU, norm_layer=None, gate_layer='sigmoid'):
@@ -56,6 +57,7 @@ class EffectiveSEModule(nn.Module):
     """ 'Effective Squeeze-Excitation
     From `CenterMask : Real-Time Anchor-Free Instance Segmentation` - https://arxiv.org/abs/1911.06667
     """
+
     def __init__(self, channels, add_maxpool=False, gate_layer='hard_sigmoid', **_):
         super(EffectiveSEModule, self).__init__()
         self.add_maxpool = add_maxpool

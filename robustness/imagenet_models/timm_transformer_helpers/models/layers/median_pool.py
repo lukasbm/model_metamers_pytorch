@@ -3,6 +3,7 @@ Hacked together by / Copyright 2020 Ross Wightman
 """
 import torch.nn as nn
 import torch.nn.functional as F
+
 from .helpers import to_2tuple, to_4tuple
 
 
@@ -15,6 +16,7 @@ class MedianPool2d(nn.Module):
          padding: pool padding, int or 4-tuple (l, r, t, b) as in pytorch F.pad
          same: override padding and enforce same padding, boolean
     """
+
     def __init__(self, kernel_size=3, stride=1, padding=0, same=False):
         super(MedianPool2d, self).__init__()
         self.k = to_2tuple(kernel_size)

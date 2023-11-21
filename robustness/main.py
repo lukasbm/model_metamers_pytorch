@@ -3,14 +3,13 @@ The main file, which exposes the robustness command-line tool, detailed in
 :doc:`this walkthrough <../example_usage/cli_usage>`.
 """
 
-from argparse import ArgumentParser
 import os
-import git
-import torch as ch
+from argparse import ArgumentParser
 
 import cox
-import cox.utils
 import cox.store
+import cox.utils
+import git
 
 try:
     from .model_utils import make_and_restore_model
@@ -22,12 +21,12 @@ try:
 except:
     raise ValueError("Make sure to run with python -m (see README.md)")
 
-
 parser = ArgumentParser()
 parser = defaults.add_args_to_parser(defaults.CONFIG_ARGS, parser)
 parser = defaults.add_args_to_parser(defaults.MODEL_LOADER_ARGS, parser)
 parser = defaults.add_args_to_parser(defaults.TRAINING_ARGS, parser)
 parser = defaults.add_args_to_parser(defaults.PGD_ARGS, parser)
+
 
 def main(args, store=None):
     '''Given arguments from `setup_args` and a store from `setup_store`,
@@ -39,7 +38,7 @@ def main(args, store=None):
     dataset = DATASETS[args.dataset](data_path)
 
     train_loader, val_loader = dataset.make_loaders(args.workers,
-                    args.batch_size, data_aug=bool(args.data_aug))
+                                                    args.batch_size, data_aug=bool(args.data_aug))
 
     train_loader = helpers.DataPrefetcher(train_loader)
     val_loader = helpers.DataPrefetcher(val_loader)
@@ -47,7 +46,7 @@ def main(args, store=None):
 
     # MAKE MODEL
     model, checkpoint = make_and_restore_model(arch=args.arch,
-            dataset=dataset, resume_path=args.resume)
+                                               dataset=dataset, resume_path=args.resume)
     if 'module' in dir(model): model = model.module
 
     print(args)
@@ -56,6 +55,7 @@ def main(args, store=None):
 
     model = train_model(args, model, loaders, store=store)
     return model
+
 
 def setup_args(args):
     '''
@@ -78,8 +78,9 @@ def setup_args(args):
 
     args = check_and_fill_args(args, defaults.MODEL_LOADER_ARGS, ds_class)
     if args.eval_only: assert args.resume is not None, \
-            "Must provide a resume path if only evaluating"
+        "Must provide a resume path if only evaluating"
     return args
+
 
 def setup_store_with_metadata(args):
     '''
@@ -89,7 +90,7 @@ def setup_store_with_metadata(args):
     # Add git commit to args
     try:
         repo = git.Repo(path=os.path.dirname(os.path.realpath(__file__)),
-                            search_parent_directories=True)
+                        search_parent_directories=True)
         version = repo.head.object.hexsha
     except git.exc.InvalidGitRepositoryError:
         version = __version__
@@ -103,6 +104,7 @@ def setup_store_with_metadata(args):
     store['metadata'].append_row(args_dict)
 
     return store
+
 
 if __name__ == "__main__":
     args = parser.parse_args()

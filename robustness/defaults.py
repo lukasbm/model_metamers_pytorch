@@ -13,15 +13,15 @@ REQ = 'REQUIRED'
 TRAINING_DEFAULTS = {
     datasets.ImageNet: {
         "epochs": 200,
-        "batch_size":256,
-        "weight_decay":1e-4,
+        "batch_size": 256,
+        "weight_decay": 1e-4,
         "step_lr": 50
     },
     datasets.jsinV3: {
-       "epochs": 6, # Each "epoch" is 25 passes through the speech dataset
-       "batch_size":64,
-       "weight_decay": 1e-4,
-       "step_lr": 2 # Note: this is 50 pases through the speech dataset due to the structure of the hdf5 files
+        "epochs": 6,  # Each "epoch" is 25 passes through the speech dataset
+        "batch_size": 64,
+        "weight_decay": 1e-4,
+        "step_lr": 2  # Note: this is 50 pases through the speech dataset due to the structure of the hdf5 files
     }
 }
 """
@@ -38,7 +38,7 @@ TRAINING_ARGS = [
     ['step-lr', int, 'number of steps between 10x LR drops', BY_DATASET],
     ['custom-schedule', str, 'LR sched (format: [(epoch, LR),...])', None],
     ['adv-train', [0, 1], 'whether to train adversarially', REQ],
-    ['adv-eval', [0, 1], 'whether to adversarially evaluate', None], 
+    ['adv-eval', [0, 1], 'whether to adversarially evaluate', None],
     ['log-iters', int, 'how frequently (in epochs) to log', 5],
     ['save-ckpt-iters', int, 'how frequently (epochs) to save \
             (-1 for none, only saves best and last)', -1]
@@ -53,7 +53,7 @@ BY_DATASET=looked up in TRAINING_DEFAULTS at runtime)]`
 PGD_ARGS = [
     ['attack-steps', int, 'number of steps for PGD attack', 7],
     ['constraint', list(attacker.STEPS.keys()), 'adv constraint', REQ],
-    ['eps', str , 'adversarial perturbation budget', REQ],
+    ['eps', str, 'adversarial perturbation budget', REQ],
     ['attack-lr', str, 'step size for PGD', REQ],
     ['use-best', [0, 1], 'if 1 (0) use best (final) PGD step as example', 1],
     ['random-restarts', int, 'number of random PGD restarts for eval', 0],
@@ -97,6 +97,7 @@ Arguments for main.py specifically
 BY_DATASET=looked up in TRAINING_DEFAULTS at runtime)]`
 """
 
+
 def add_args_to_parser(arg_list, parser):
     """
     Adds arguments from one of the argument lists above to a passed-in
@@ -113,7 +114,7 @@ def add_args_to_parser(arg_list, parser):
         The original parser, now with the arguments added in.
     """
     for arg_name, arg_type, arg_help, arg_default in arg_list:
-        has_choices = (type(arg_type) == list) 
+        has_choices = (type(arg_type) == list)
         kwargs = {
             'type': type(arg_type[0]) if has_choices else arg_type,
             'help': f"{arg_help} (default: {arg_default})"
@@ -121,6 +122,7 @@ def add_args_to_parser(arg_list, parser):
         if has_choices: kwargs['choices'] = arg_type
         parser.add_argument(f'--{arg_name}', **kwargs)
     return parser
+
 
 def check_and_fill_args(args, arg_list, ds_class):
     """
@@ -141,12 +143,10 @@ def check_and_fill_args(args, arg_list, ds_class):
     for arg_name, _, _, arg_default in arg_list:
         name = arg_name.replace("-", "_")
         if helpers.has_attr(args, name): continue
-        if arg_default == REQ: raise ValueError(f"{arg_name} required")
+        if arg_default == REQ:
+            raise ValueError(f"{arg_name} required")
         elif arg_default == BY_DATASET:
             setattr(args, name, TRAINING_DEFAULTS[ds_class][name])
-        elif arg_default is not None: 
+        elif arg_default is not None:
             setattr(args, name, arg_default)
     return args
-
-
-

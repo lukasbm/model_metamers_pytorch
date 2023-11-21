@@ -1,8 +1,10 @@
 This directory contains the analysis folders for each model.
 
-The metamers were generated within each of these directories, and directory structure remains, however the png and .pckl files are omited from the github repository due to size.
+The metamers were generated within each of these directories, and directory structure remains, however the png and .pckl
+files are omited from the github repository due to size.
 
-The general structure follows: 
+The general structure follows:
+
 ```
 metamers_paper_model_analysis_folders
 │   README

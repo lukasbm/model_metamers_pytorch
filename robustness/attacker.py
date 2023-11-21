@@ -27,9 +27,10 @@ called directly---instead, these arguments are passed along from
 :meth:`robustness.attacker.AttackerModel.forward`.
 """
 
-import torch as ch
-import dill
 import os
+
+import torch as ch
+
 if int(os.environ.get("NOTEBOOK_MODE", 0)) == 1:
     from tqdm import tqdm_notebook as tqdm
 else:
@@ -46,6 +47,7 @@ STEPS = {
     'l2_enforcenorm': attack_steps.L2StepNormEnforced,
 }
 
+
 class Attacker(ch.nn.Module):
     """
     Attacker class, used to make adversarial examples.
@@ -57,6 +59,7 @@ class Attacker(ch.nn.Module):
     However, the :meth:`robustness.Attacker.forward` function below
     documents the arguments supported for adversarial attacks specifically.
     """
+
     def __init__(self, model, dataset):
         """
         Initialize the Attacker
@@ -144,7 +147,7 @@ class Attacker(ch.nn.Module):
         criterion = ch.nn.CrossEntropyLoss(reduction='none').cuda()
         step_class = STEPS[constraint] if isinstance(constraint, str) else constraint
         step = step_class(eps=eps, orig_input=orig_input, step_size=step_size,
-                          min_value=self.dataset_min_value, max_value=self.dataset_max_value) 
+                          min_value=self.dataset_min_value, max_value=self.dataset_max_value)
 
         def calc_loss(inp, target):
             '''
@@ -190,7 +193,7 @@ class Attacker(ch.nn.Module):
                 x = x.clone().detach().requires_grad_(True)
                 losses, out = calc_loss(step.to_image(x), target)
                 assert losses.shape[0] == x.shape[0], \
-                        'Shape of losses must match input!'
+                    'Shape of losses must match input!'
 
                 loss = ch.mean(losses)
 
@@ -212,7 +215,7 @@ class Attacker(ch.nn.Module):
                     if do_tqdm: iterator.set_description("Current loss: {l}".format(l=loss))
 
             # Save computation (don't compute last loss) if not use_best
-            if not use_best: 
+            if not use_best:
                 ret = x.clone().detach()
                 return step.to_image(ret) if return_image else ret
 
@@ -245,6 +248,7 @@ class Attacker(ch.nn.Module):
 
         return adv_ret
 
+
 class AttackerModel(ch.nn.Module):
     """
     Wrapper class for adversarial attacks on models. Given any normal
@@ -263,6 +267,7 @@ class AttackerModel(ch.nn.Module):
     For a more comprehensive overview of this class, see `our detailed
     walkthrough <../example_usage/input_space_manipulation>`_
     """
+
     def __init__(self, model, dataset):
         super(AttackerModel, self).__init__()
         if helpers.has_attr(dataset, 'vone_input_preproc'):
@@ -280,7 +285,6 @@ class AttackerModel(ch.nn.Module):
         # want to include in the adversarial example generation
         if helpers.has_attr(dataset, 'audio_rep_transform'):
             self.audio_rep_transform = dataset.audio_rep_transform
-
 
     def forward(self, inp, target=None, make_adv=False, with_latent=False,
                 fake_relu=False, no_relu=False, with_image=True, **attacker_kwargs):
@@ -318,9 +322,9 @@ class AttackerModel(ch.nn.Module):
         # adverarial examples for the rest of the model
         if helpers.has_attr(self, 'audio_rep_transform'):
             inp, _ = self.audio_rep_transform(inp, None)
-        if helpers.has_attr(self, 'vone_transform'): 
+        if helpers.has_attr(self, 'vone_transform'):
             inp = self.vone_transform(inp)
-      
+
         if make_adv:
             assert target is not None
             prev_training = bool(self.training)
@@ -339,9 +343,8 @@ class AttackerModel(ch.nn.Module):
             if no_relu and fake_relu:
                 raise ValueError("Options 'no_relu' and 'fake_relu' are exclusive")
             output = self.model(preproc_inp, with_latent=with_latent,
-                                    fake_relu=fake_relu, no_relu=no_relu)
+                                fake_relu=fake_relu, no_relu=no_relu)
         else:
             output = None
 
         return (output, inp)
-

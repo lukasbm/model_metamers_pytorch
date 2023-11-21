@@ -1,12 +1,13 @@
 """ Conv2d w/ Same Padding
 Hacked together by Ross Wightman
 """
+from typing import Tuple, Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Tuple, Optional
 
-from .padding import pad_same, get_padding_value, pad_same1d
+from .padding import get_padding_value, pad_same1d
 
 
 def conv1d_same(
