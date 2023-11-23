@@ -99,7 +99,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
     # Label name for the 16 way imagenet task
     label_name = image_dict['correct_response']
 
-    # Getthe full imagnet keys for printing predictions
+    # Get the full imagenet keys for printing predictions
     label_keys = CLASS_DICT['ImageNet'].keys()
     label_values = CLASS_DICT['ImageNet'].values()
     label_idx = list(label_keys)[list(label_values).index(wnid_imagenet_name[image_dict['imagenet_category']])]
@@ -147,7 +147,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
     print('Orig Image 16 Category Prediction: %s' % (
         orig_16_cat_prediction))
 
-    # Make the noise input (will use for all of the input seeds)
+    # Make the noise input (will use for all the input seeds)
     # the noise scale is typically << the noise mean, so we don't have to worry about negative values. 
     im_n_initialized = (torch.randn_like(im) * NOISE_SCALE + init_noise_mean).detach().cpu().numpy()
 
@@ -170,7 +170,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
             model.disable_dropout_functions = synth_kwargs['custom_loss']._disable_dropout_functions
 
         # Use same noise for every layer.
-        #     im_n = torch.clamp(torch.from_numpy(im_n_initialized), 0, 1).cuda()
+        # im_n = torch.clamp(torch.from_numpy(im_n_initialized), 0, 1).cuda()
         im_n = torch.clamp(torch.from_numpy(im_n_initialized), ds.min_value, ds.max_value).cuda()
         invert_rep = all_outputs[layer_to_invert].contiguous().view(all_outputs[layer_to_invert].size(0), -1)
 
@@ -222,6 +222,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
             predictions_out_dict[layer_to_invert] = predictions_out
         else:
             predictions_out_dict[layer_to_invert] = predictions_out.detach().cpu()
+
         try:
             rep_out_dict[layer_to_invert] = rep_out.detach().cpu()
         except AttributeError:

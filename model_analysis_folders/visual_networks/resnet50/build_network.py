@@ -1,4 +1,4 @@
-from model_analysis_folders.all_model_info import IMAGENET_PATH
+from analysis_scripts.default_paths import IMAGENET_PATH
 from robustness import datasets
 from robustness.model_utils import make_and_restore_model
 
@@ -39,18 +39,12 @@ def build_net(ds_kwargs={}, return_metamer_layers=False):
 
 
 def main(return_metamer_layers=False,
-         ds_kwargs={}):
-    if return_metamer_layers:
-        model, ds, metamer_layers = build_net(
-            return_metamer_layers=return_metamer_layers,
-            ds_kwargs=ds_kwargs)
-        return model, ds, metamer_layers
-
-    else:
-        model, ds = build_net(
-            return_metamer_layers=return_metamer_layers,
-            ds_kwargs=ds_kwargs)
-        return model, ds
+         ds_kwargs=None):
+    if ds_kwargs is None:
+        ds_kwargs = {}
+    return build_net(
+        return_metamer_layers=return_metamer_layers,
+        ds_kwargs=ds_kwargs)
 
 
 if __name__ == "__main__":
