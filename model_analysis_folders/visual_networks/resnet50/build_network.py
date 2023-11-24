@@ -24,7 +24,7 @@ def build_net(ds_kwargs={}, return_metamer_layers=False):
         'final'
     ]
 
-    ds = datasets.ImageNet(IMAGENET_PATH)
+    ds = datasets.ImageNet(IMAGENET_PATH, **ds_kwargs)
 
     model, _ = make_and_restore_model(arch='resnet50', dataset=ds,
                                       pytorch_pretrained=True, parallel=False)

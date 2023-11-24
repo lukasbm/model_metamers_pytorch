@@ -252,4 +252,5 @@ def force_16_choice(sorted_logit_args, class_labels_key,
         predicted_label_in_16 = mapped_categories[wnid_imagenet_name[check_predicted_label]]
         return predicted_label_in_16
     except KeyError:
-        return force_16_choice(sorted_logit_args, class_labels_key, check_idx=check_idx + 1)
+        return force_16_choice(sorted_logit_args, class_labels_key,
+                               check_idx=(check_idx + 1) % sorted_logit_args.shape[-1])

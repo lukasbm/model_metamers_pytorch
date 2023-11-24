@@ -9,7 +9,6 @@ import importlib.util
 import os
 import pickle
 
-import numpy as np
 import torch
 
 from robustness.tools.distance_measures import *

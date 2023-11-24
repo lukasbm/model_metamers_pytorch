@@ -133,7 +133,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
         (predictions, rep, all_outputs), orig_im = model(im.cuda(), with_latent=True,
                                                          fake_relu=True)  # Corresponding representation
 
-    # Calculate human readable labels and 16 category labels for the original image
+    # Calculate human-readable labels and 16 category labels for the original image
     orig_predictions = []
     for b in range(BATCH_SIZE):
         try:
@@ -157,8 +157,8 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
             'custom_loss': custom_synthesis_losses.LOSSES[LOSS_FUNCTION](layer_to_invert, normalize_loss=True),
             'constraint': '2',
             'eps': 100000,
-            'step_size': step_size,
-            'iterations': ITERATIONS,
+            'step_size': step_size,  # the maximum l2 norm?? that is halved every 3000 iterations?
+            'iterations': ITERATIONS,  # 3000
             'do_tqdm': False,
             'targeted': True,
             'use_best': False
@@ -172,6 +172,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
         # Use same noise for every layer.
         # im_n = torch.clamp(torch.from_numpy(im_n_initialized), 0, 1).cuda()
         im_n = torch.clamp(torch.from_numpy(im_n_initialized), ds.min_value, ds.max_value).cuda()
+        # im_n = im.clone().cuda()
         invert_rep = all_outputs[layer_to_invert].contiguous().view(all_outputs[layer_to_invert].size(0), -1)
 
         # Do the optimization, and save the losses occasionally
@@ -207,7 +208,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
                     pass
 
             im_n = xadv
-            synth_kwargs['step_size'] = synth_kwargs['step_size'] / 2
+            synth_kwargs['step_size'] = synth_kwargs['step_size'] / 2  # constrain max L2 norm of grad desc desc
             (predictions_out, rep_out, all_outputs_out), xadv = model(im_n, invert_rep.clone(), make_adv=True,
                                                                       **synth_kwargs, with_latent=True,
                                                                       fake_relu=True)  # Image inversion using PGD
