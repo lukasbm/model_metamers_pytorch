@@ -19,6 +19,7 @@ onnx
 pandas
 numpy<1.24  # need to lock for compatibility
 matplotlib
+seaborn
 scikit-learn
 numba
 
@@ -54,4 +55,3 @@ ipykernel
 # pylint # or flake8
 # pylance language server not listed here, has to installed seperately
 # bandit  # security checker
-

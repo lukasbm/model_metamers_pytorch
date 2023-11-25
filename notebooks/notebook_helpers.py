@@ -18,7 +18,6 @@ visual_experiment_dict_by_name = {
     'Visual Experiment 7 (ResNet50 Adversarially Robust, Figure 5)': 3,
     'Visual Experiment 8 (AlexNet Adversarially Robust, Figure 5)': 4,
     'Visual Experiment 12 (Lowpass AlexNet and VOneNet, Figure 7)': 9,
-
 }
 
 audio_experiment_dict_by_name = {
