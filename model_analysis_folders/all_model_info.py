@@ -1,9 +1,13 @@
 import os
 
+from analysis_scripts.default_paths import IMAGENET_PATH
+
 # Set direct paths for the system being used
 MODEL_BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 VISION_TURK_WEB_PATH = 'https://mcdermottlab.mit.edu/mturk_stimuli/imagerec_robust_models_v1/'
 AUDIO_TURK_WEB_PATH = 'https://mcdermottlab.mit.edu/mturk_stimuli/audio_word_rec_metamers/'
+
+IMAGENET_PATH = IMAGENET_PATH  # just so my stupid autoformatter does not remove it!
 
 # Experiment groupings
 # Run all experiments out of the same www folder, but have different folders for the image sets
