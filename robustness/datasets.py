@@ -144,17 +144,14 @@ class DataSet(object):
 
 
 class ImageNet(DataSet):
-    '''
+    """
     ImageNet Dataset [DDS+09]_.
 
-    Requires ImageNet in ImageFolder-readable format. 
+    Requires ImageNet in ImageFolder-readable format.
     ImageNet can be downloaded from http://www.image-net.org. See
     `here <https://pytorch.org/docs/master/torchvision/datasets.html#torchvision.datasets.ImageFolder>`_
     for more information about the format.
-
-    .. [DDS+09] Deng, J., Dong, W., Socher, R., Li, L., Li, K., & Fei-Fei, L. (2009). ImageNet: A large-scale hierarchical image database. 2009 IEEE Conference on Computer Vision and Pattern Recognition, 248-255.
-
-    '''
+    """
 
     def __init__(self, data_path, **kwargs):
         """

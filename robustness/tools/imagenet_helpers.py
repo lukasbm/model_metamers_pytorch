@@ -144,7 +144,7 @@ class ImageNetHierarchy():
             child_wnid (str) : WordNet ID for synset represented by child node
 
         Returns:
-            A boolean variable indicating whether or not the node is an ancestor
+            A boolean variable indicating whether the node is an ancestor
         """
         return (child_wnid in self.tree[ancestor_wnid].descendants_all)
 

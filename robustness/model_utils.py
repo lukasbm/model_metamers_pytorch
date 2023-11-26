@@ -2,13 +2,17 @@ import os
 
 import dill
 import torch as ch
+from cox.store import Store
+from cox.utils import Parameters
 
 from .attacker import AttackerModel
+from .datasets import DATASETS
 from .tools import constants
+from .tools.helpers import ckpt_at_epoch
 
 
 class FeatureExtractor(ch.nn.Module):
-    '''
+    """
     Tool for extracting layers from models.
 
     Args:
@@ -21,7 +25,7 @@ class FeatureExtractor(ch.nn.Module):
         A model whose forward function returns the activations from the layers
             corresponding to the functions in `layers` (in the order that the
             functions were passed in the list).
-    '''
+    """
 
     def __init__(self, submod, layers):
         # layers must be in order
@@ -156,7 +160,7 @@ def model_dataset_from_store(s, overwrite_params={}, which='last'):
     # which options: {'best', 'last', integer}
     if type(s) is tuple:
         s, e = s
-        s = cox.store.Store(s, e, mode='r')
+        s = Store(s, e, mode='r')
 
     m = s['metadata']
     df = s['metadata'].df

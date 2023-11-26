@@ -232,7 +232,7 @@ all_categories = {'dog': dog,
                   'bicycle': bicycle,
                   'keyboard': keyboard}
 
-mapped_categories = {}
+mapped_categories = {}  # maps used imagenet picture ID's to 16 category
 for category, cat_value in all_categories.items():
     for image_type in cat_value:
         mapped_categories[image_type] = category
@@ -240,15 +240,29 @@ for category, cat_value in all_categories.items():
 # Get the WNID
 with open(os.path.join(FILE_DIRECTORY, 'wordnetID_to_human_identifier.txt'), mode='r') as infile:
     reader = csv.reader(infile, delimiter='\t')
-    wnid_imagenet_name = {rows[1]: rows[0] for rows in reader}
+    wnid_imagenet_name = {rows[1]: rows[0] for rows in reader}  # maps human identifier to imagenet picture ID
 
 
 def force_16_choice(sorted_logit_args, class_labels_key,
                     check_idx=0, class_index_offset=0):
-    """Finds the first label that falls into one of the 16 
-    categories, and assigns that label to the image"""
+    """
+    Finds the first label that falls into one of the 16
+    categories, and assigns that label to the image
+
+    @param sorted_logit_args: array of shape [1000] containing the sorted indices of the logits in reversed order.
+        The most fitting class index is at the beginning of the array.
+        We need this as this weird array instead of taking the argmax as typical,
+        so we can move over if there is no equivalent 16 class.
+    @param class_labels_key: the imagenet map containing 1000 integer keys with their label values
+
+    Problem: if the first class is not in the 16 class, we need to move over to the next class.
+        This can falsify the result since we use worse matches
+    """
+    # label for most likely class (based on offset and idx)
     check_predicted_label = class_labels_key[sorted_logit_args[check_idx] + class_index_offset]
     try:
+        # FIXME: is there no better mapping from imagenet class to imagenet picture id?
+        # Also why is the wordnet map
         predicted_label_in_16 = mapped_categories[wnid_imagenet_name[check_predicted_label]]
         return predicted_label_in_16
     except KeyError:
