@@ -34,11 +34,11 @@ def preproc_image(image, image_dict):
 
 
 def calc_loss(model, inp, target, custom_loss, should_preproc=True):
-    '''
+    """
     Modified from the Attacker module of Robustness. 
     Calculates the loss of an input with respect to target labels
     Uses custom loss (if provided) otherwise the criterion
-    '''
+    """
     if should_preproc:
         inp = model.preproc(inp)
     return custom_loss(model.model, inp, target)

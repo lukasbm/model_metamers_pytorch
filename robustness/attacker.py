@@ -150,10 +150,10 @@ class Attacker(ch.nn.Module):
                           min_value=self.dataset_min_value, max_value=self.dataset_max_value)
 
         def calc_loss(inp, target):
-            '''
+            """
             Calculates the loss of an input with respect to target labels
             Uses custom loss (if provided) otherwise the criterion
-            '''
+            """
             if should_preproc:
                 inp = self.preproc(inp)
             output = self.model(inp)

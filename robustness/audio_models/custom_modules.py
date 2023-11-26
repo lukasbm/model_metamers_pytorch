@@ -33,11 +33,11 @@ class SequentialWithArgs(ch.nn.Sequential):
 
 
 class AudioInputRepresentation(ch.nn.Module):
-    '''
+    """
     A module (custom layer) for turning the audio signal into a
     representation for training, ie using a mel spectrogram or a
     cochleagram.
-    '''
+    """
 
     def __init__(self, rep_type, rep_kwargs, compression_type, compression_kwargs):
         super(AudioInputRepresentation, self).__init__()

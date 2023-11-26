@@ -104,11 +104,11 @@ def accuracy(output, target, topk=(1,), exact=False):
 
 
 class GraphPreprocessing(ch.nn.Module):
-    '''
+    """
     Performs preprocessing of the input that should be included in the 
     graph for adversarial generation. Ie Input Normalization and Audio
     Representation Conversion.
-    '''
+    """
 
     def __init__(self, dataset):
         super(GraphPreprocessing, self).__init__()
@@ -128,11 +128,11 @@ class GraphPreprocessing(ch.nn.Module):
 
 
 class InputNormalize(ch.nn.Module):
-    '''
+    """
     A module (custom layer) for normalizing the input to have a fixed 
     mean and standard deviation (user-specified), clipped at the 
     possible min and max of the input
-    '''
+    """
 
     def __init__(self, new_mean, new_std, min_value, max_value):
         super(InputNormalize, self).__init__()
@@ -152,11 +152,11 @@ class InputNormalize(ch.nn.Module):
 
 
 class AudioInputRepresentation(ch.nn.Module):
-    '''
+    """
     A module (custom layer) for turning the audio signal into a 
     representation for training, ie using a mel spectrogram or a 
     cochleagram. 
-    '''
+    """
 
     def __init__(self, rep_type, rep_kwargs, compression_type, compression_kwargs):
         super(AudioInputRepresentation, self).__init__()

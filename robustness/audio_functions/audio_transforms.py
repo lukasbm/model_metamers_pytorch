@@ -6,7 +6,7 @@ from chcochleagram import *
 
 
 def ch_demean(x, dim=0):
-    '''
+    """
     Helper function to mean-subtract tensor.
     
     Args
@@ -17,13 +17,13 @@ def ch_demean(x, dim=0):
     Returns
     -------
     x_demean (tensor): mean-subtracted tensor
-    '''
+    """
     x_demean = torch.sub(x, torch.mean(x, dim=dim))
     return x_demean
 
 
 def ch_rms(x, dim=0):
-    '''
+    """
     Helper function to compute RMS amplitude of a tensor.
     
     Args
@@ -34,7 +34,7 @@ def ch_rms(x, dim=0):
     Returns
     -------
     rms_x (tensor): root-mean-square amplitude of x
-    '''
+    """
     rms_x = torch.sqrt(torch.mean(torch.pow(x, 2), dim=dim))
     return rms_x
 

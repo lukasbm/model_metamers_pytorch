@@ -11,6 +11,7 @@ from .tools import constants
 from .tools.helpers import ckpt_at_epoch
 
 
+# UNUSED
 class FeatureExtractor(ch.nn.Module):
     """
     Tool for extracting layers from models.
@@ -153,10 +154,10 @@ def make_and_restore_model(*_, arch, dataset, resume_path=None,
 
 
 def model_dataset_from_store(s, overwrite_params={}, which='last'):
-    '''
+    """
     Given a store directory corresponding to a trained model, return the
     original model, dataset object, and args corresponding to the arguments.
-    '''
+    """
     # which options: {'best', 'last', integer}
     if type(s) is tuple:
         s, e = s

@@ -170,9 +170,9 @@ LOSSES = {
     'coarse_define_spectemp_inversion_loss_layer': InversionLossLayerWithCoarseDefineSpecTemp111,
     'random_single_unit_optimization_inversion_loss_layer': InversionLossLayerWithRandomSingleUnitOptimizationDropout,
 }
-'''
+"""
 Dictionary of loss functions for synthesis. A loss function class can be accessed as
 
 >>> import robustness.custom_synthesis_losses
 >>> ds = custom_synthesis_losses.LOSSES['inversion_loss_layer'](<LOSS ARGS>)
-'''
+"""

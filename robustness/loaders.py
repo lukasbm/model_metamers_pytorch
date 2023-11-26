@@ -19,7 +19,7 @@ def make_loaders(workers, batch_size, transforms, data_path, data_aug=True,
                  subset_type='rand', subset_type_val='rand', subset_start=0, subset_start_val=0, val_batch_size=None,
                  only_val=False, shuffle_train=True, shuffle_val=True, seed=1,
                  dl_kwargs={}):
-    '''
+    """
     **INTERNAL FUNCTION**
 
     This is an internal function that makes a loader for any dataset. You
@@ -29,7 +29,7 @@ def make_loaders(workers, batch_size, transforms, data_path, data_aug=True,
     >>> cifar_dataset = CIFAR10('/path/to/cifar')
     >>> train_loader, val_loader = cifar_dataset.make_loaders(workers=10, batch_size=128)
     >>> # train_loader and val_loader are just PyTorch dataloaders
-    '''
+    """
     print(f"==> Preparing dataset {dataset}..")
     transform_train, transform_test = transforms
     if not data_aug:
@@ -110,11 +110,11 @@ def make_loaders(workers, batch_size, transforms, data_path, data_aug=True,
 
 ## loader wrapper (for adding custom functions to dataloader)
 class PerEpochLoader:
-    '''
+    """
     A blend between TransformedLoader and LambdaLoader: stores the whole loader
     in memory, but recomputes it from scratch every epoch, instead of just once
     at initialization.
-    '''
+    """
 
     def __init__(self, loader, func, do_tqdm=True):
         self.orig_loader = loader
@@ -149,7 +149,7 @@ class PerEpochLoader:
 
 
 class LambdaLoader:
-    '''
+    """
     This is a class that allows one to apply any given (fixed) 
     transformation to the output from the loader in *real-time*.
 
@@ -164,17 +164,17 @@ class LambdaLoader:
 
     For more information see :ref:`our detailed walkthrough <using-custom-loaders>`
 
-    '''
+    """
 
     def __init__(self, loader, func):
-        '''
+        """
         Args:
             loader (PyTorch dataloader) : loader for dataset (*required*).
             func (function) : fixed transformation to be applied to 
                 every batch in real-time (*required*). It takes in 
                 (images, labels) and returns (images, labels) of the 
                 same shape.
-        '''
+        """
         self.data_loader = loader
         self.loader = iter(self.data_loader)
         self.func = func
@@ -204,7 +204,7 @@ class LambdaLoader:
 def TransformedLoader(loader, func, transforms, workers=None,
                       batch_size=None, do_tqdm=False, augment=False, fraction=1.0,
                       dl_kwargs={}):
-    '''
+    """
     This is a function that allows one to apply any given (fixed) 
     transformation to the output from the loader *once*. 
 
@@ -247,7 +247,7 @@ def TransformedLoader(loader, func, transforms, workers=None,
                                             batch_size=128) 
         >>> for im, lab in output_loader:
         >>>     # Do stuff...
-    '''
+    """
 
     new_ims = []
     new_targs = []

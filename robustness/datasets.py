@@ -25,10 +25,10 @@ from .audio_functions.jsinV3DataLoader_precombined import jsinV3_precombined, js
 
 
 class DataSet(object):
-    '''
+    """
     Base class for representing a dataset. Meant to be subclassed, with
-    subclasses implementing the `get_model` function. 
-    '''
+    subclasses implementing the `get_model` function.
+    """
 
     def __init__(self, ds_name, data_path, **kwargs):
         """
@@ -64,9 +64,9 @@ class DataSet(object):
         self.__dict__.update(kwargs)
 
     def get_model(self, arch, pretrained, arch_kwargs={}):
-        '''
+        """
         Should be overriden by subclasses. Also, you will probably never
-        need to call this function, and should instead by using
+        need to call this function, and should instead use
         `model_utils.make_and_restore_model </source/robustness.model_utils.html>`_.
 
         Args:
@@ -77,7 +77,7 @@ class DataSet(object):
         Returns:
             A model with the given architecture that works for each
             dataset (e.g. with the right input/output dimensions).
-        '''
+        """
 
         raise NotImplementedError
 
@@ -86,7 +86,7 @@ class DataSet(object):
                      val_batch_size=None,
                      only_val=False, shuffle_train=True, shuffle_val=True,
                      dl_kwargs={}):
-        '''
+        """
         Args:
             workers (int) : number of workers for data fetching (*required*).
                 batch_size (int) : batch size for the data loaders (*required*).
@@ -106,9 +106,9 @@ class DataSet(object):
                 different batch size for the validation set loader.
             only_val (bool) : If `True`, returns `None` in place of the
                 training data loader
-            shuffle_train (bool) : Whether or not to shuffle the training data
+            shuffle_train (bool) : Whether to shuffle the training data
                 in the returned DataLoader.
-            shuffle_val (bool) : Whether or not to shuffle the test data in the
+            shuffle_val (bool) : Whether to shuffle the test data in the
                 returned DataLoader.
             dl_kwargs (dict): additional keyword arguments for the dataloader
 
@@ -117,10 +117,10 @@ class DataSet(object):
             parameters given. These are standard PyTorch data loaders, and
             thus can just be used via:
 
-            >>> train_loader, val_loader = ds.make_loaders(workers=8, batch_size=128) 
+            >>> train_loader, val_loader = ds.make_loaders(workers=8, batch_size=128)
             >>> for im, lab in train_loader:
             >>>     # Do stuff...
-        '''
+        """
         transforms = (self.transform_train, self.transform_test)
         return loaders.make_loaders(workers=workers,
                                     batch_size=batch_size,
@@ -148,14 +148,12 @@ class ImageNet(DataSet):
     ImageNet Dataset [DDS+09]_.
 
     Requires ImageNet in ImageFolder-readable format.
-    ImageNet can be downloaded from http://www.image-net.org. See
+    ImageNet can be downloaded from www.image-net.org. See
     `here <https://pytorch.org/docs/master/torchvision/datasets.html#torchvision.datasets.ImageFolder>`_
     for more information about the format.
     """
 
     def __init__(self, data_path, **kwargs):
-        """
-        """
         mean = kwargs.get('mean', [0.485, 0.456, 0.406])
         std = kwargs.get('std', [0.229, 0.224, 0.225])
 
@@ -288,9 +286,9 @@ DATASETS = {
     'imagenet': ImageNet,
     'jsinV3': jsinV3,
 }
-'''
+"""
 Dictionary of datasets. A dataset class can be accessed as:
 
 >>> import robustness.datasets
 >>> ds = datasets.DATASETS['imagenet']('/path/to/imagenet')
-'''
+"""

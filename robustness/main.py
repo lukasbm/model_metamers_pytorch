@@ -29,10 +29,10 @@ parser = defaults.add_args_to_parser(defaults.PGD_ARGS, parser)
 
 
 def main(args, store=None):
-    '''Given arguments from `setup_args` and a store from `setup_store`,
+    """Given arguments from `setup_args` and a store from `setup_store`,
     trains as a model. Check out the argparse object in this file for
     argument options.
-    '''
+    """
     # MAKE DATASET AND LOADERS
     data_path = os.path.expandvars(args.data)
     dataset = DATASETS[args.dataset](data_path)
@@ -58,11 +58,11 @@ def main(args, store=None):
 
 
 def setup_args(args):
-    '''
+    """
     Fill the args object with reasonable defaults from
     :mod:`robustness.defaults`, and also perform a sanity check to make sure no
     args are missing.
-    '''
+    """
     # override non-None values with optional config_path
     if args.config_path:
         args = cox.utils.override_json(args, args.config_path)
@@ -83,10 +83,10 @@ def setup_args(args):
 
 
 def setup_store_with_metadata(args):
-    '''
+    """
     Sets up a store for training according to the arguments object. See the
     argparse object above for options.
-    '''
+    """
     # Add git commit to args
     try:
         repo = git.Repo(path=os.path.dirname(os.path.realpath(__file__)),

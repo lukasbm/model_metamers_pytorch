@@ -23,10 +23,10 @@ from robustness.tools.distance_measures import *
 
 
 def preproc_sound_np(sound):
-    '''
+    """
     Sounds going into the pytorch models are normalized to have rms=0.1
     Additional preprocessing happens inside of the model loop. 
-    '''
+    """
     sound = sound - np.mean(sound)
     sound = sound / np.sqrt(np.mean(sound ** 2)) * 0.1
     sound = np.expand_dims(sound, 0)
@@ -35,11 +35,11 @@ def preproc_sound_np(sound):
 
 
 def calc_loss(model, inp, target, custom_loss, should_preproc=True):
-    '''
+    """
     Modified from the Attacker module of Robustness. 
     Calculates the loss of an input with respect to target
     Uses custom loss (if provided) otherwise the criterion
-    '''
+    """
     if should_preproc:
         inp = model.preproc(inp)
     return custom_loss(model.model, inp, target)

@@ -4,9 +4,9 @@ from itertools import product
 
 
 class Node():
-    '''
+    """
     Class for representing a node in the ImageNet/WordNet hierarchy. 
-    '''
+    """
 
     def __init__(self, wnid, parent_wnid=None, name=""):
         """
@@ -40,9 +40,9 @@ class Node():
 
 
 class ImageNetHierarchy():
-    '''
+    """
     Class for representing ImageNet/WordNet hierarchy. 
-    '''
+    """
 
     def __init__(self, ds_path, ds_info_path):
         """
