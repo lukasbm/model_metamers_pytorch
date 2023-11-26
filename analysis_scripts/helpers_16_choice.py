@@ -232,15 +232,15 @@ all_categories = {'dog': dog,
                   'bicycle': bicycle,
                   'keyboard': keyboard}
 
-mapped_categories = {}  # maps used imagenet picture ID's to 16 category
+mapped_categories = {}  # maps used imagenet category ID's to 16 category
 for category, cat_value in all_categories.items():
     for image_type in cat_value:
         mapped_categories[image_type] = category
 
-# Get the WNID
+# Get the WNID, but swap the keys and values
 with open(os.path.join(FILE_DIRECTORY, 'wordnetID_to_human_identifier.txt'), mode='r') as infile:
     reader = csv.reader(infile, delimiter='\t')
-    wnid_imagenet_name = {rows[1]: rows[0] for rows in reader}  # maps human identifier to imagenet picture ID
+    wnid_imagenet_name = {rows[1]: rows[0] for rows in reader}  # maps human identifier to imagenet category ID
 
 
 def force_16_choice(sorted_logit_args, class_labels_key,
@@ -261,7 +261,6 @@ def force_16_choice(sorted_logit_args, class_labels_key,
     # label for most likely class (based on offset and idx)
     check_predicted_label = class_labels_key[sorted_logit_args[check_idx] + class_index_offset]
     try:
-        # FIXME: is there no better mapping from imagenet class to imagenet picture id?
         # Also why is the wordnet map
         predicted_label_in_16 = mapped_categories[wnid_imagenet_name[check_predicted_label]]
         return predicted_label_in_16

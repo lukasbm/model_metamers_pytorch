@@ -65,7 +65,6 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
     predicted_16_cat_labels_out_dict = {}
 
     BATCH_SIZE = 1  # TODO(jfeather): remove batch references -- they are unnecessary and not used.
-    NUM_WORKERS = 1
 
     torch.manual_seed(RANDOMSEED)
     np.random.seed(RANDOMSEED)
@@ -80,12 +79,14 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
         wnid_imagenet_name = {rows[0]: rows[1] for rows in reader}
 
     # Load dataset for metamer generation
+    # this loads the image.
     INPUTIMAGEFUNC = generate_import_image_functions(INPUTIMAGEFUNCNAME, data_format='NCHW')
-    image_dict = INPUTIMAGEFUNC(SIDX)
+    image_dict = INPUTIMAGEFUNC(SIDX)  # load the image from the reduced dataset (400 images, see /assets)
     image_dict['image_orig'] = image_dict['image']
     # Preprocess to be in the format for pytorch
-    image_dict['image'] = preproc_image(image_dict['image'], image_dict)
+    image_dict['image'] = preproc_image(image_dict['image'], image_dict)  # essentially a ToTensor transform
     if use_dataset_preproc:  # Apply for some models, for instance if we have greyscale images or different sizes.
+        # essentially turn it back into a PIL image and apply the dataset transforms
         image_dict['image'] = ds.transform_test(Image.fromarray(np.rollaxis(np.uint8(image_dict['image'] * 255), 0, 3)))
         scale_image_save_PIL_factor = ds.scale_image_save_PIL_factor
         init_noise_mean = ds.init_noise_mean
@@ -93,8 +94,9 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
         scale_image_save_PIL_factor = 255
         init_noise_mean = 0.5
 
-    # Add a batch dimension to the input image 
-    im = torch.tensor(np.expand_dims(image_dict['image'], 0)).float().contiguous()
+    # Add a batch dimension to the input image
+    # finally turn into a pytorch tensor
+    reference_image = torch.tensor(np.expand_dims(image_dict['image'], 0)).float().contiguous()
 
     # Label name for the 16 way imagenet task
     label_name = image_dict['correct_response']
@@ -121,17 +123,9 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
     model = model.cuda()
     model.eval()
 
-    # TODO: make this more permanent/flexible
-    # Here because dropout may help optimization for some types of losses
-    try:
-        model.disable_dropout_functions()
-        print('Turning off dropout functions because we are measuring activations')
-    except:
-        pass
-
     with torch.no_grad():
         (reference_output, reference_rep, reference_activations), reference_image = model(
-            im.cuda(), with_latent=True, fake_relu=True)
+            reference_image.cuda(), with_latent=True, fake_relu=True)
 
     # Calculate human-readable labels and 16 category labels for the original image
     reference_predictions = []
@@ -142,15 +136,13 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
             reference_predictions.append(reference_output['signal/word_int'][b].detach().cpu().numpy())
 
     # Get the predicted 16 category label
-    #
     reference_16_cat_prediction = [force_16_choice(np.flip(np.argsort(p.ravel(), 0)), CLASS_DICT['ImageNet'])
                                    for p in reference_predictions]  # p should be an array of shape [1000]
-    print('Orig Image 16 Category Prediction: %s' % (
-        reference_16_cat_prediction))
+    print('Orig Image 16 Category Prediction: %s' % reference_16_cat_prediction)
 
     # Make the noise input (will use for all the input seeds)
     # the noise scale is typically << the noise mean, so we don't have to worry about negative values. 
-    im_n_initialized = (torch.randn_like(im) * NOISE_SCALE + init_noise_mean).detach().cpu().numpy()
+    initial_noise = (torch.randn_like(reference_image) * NOISE_SCALE + init_noise_mean).detach().cpu().numpy()
 
     for layer_to_invert in metamer_layers:
         # Choose the inversion parameters (will run 4x the iterations, reducing the learning rate each time)
@@ -170,28 +162,43 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
             model.enable_dropout_functions = synth_kwargs['custom_loss']._enable_dropout_functions
             model.disable_dropout_functions = synth_kwargs['custom_loss']._disable_dropout_functions
 
+        # Here because dropout may help optimization for some types of losses
+        try:
+            model.disable_dropout_functions()
+            print('Turning off dropout functions because we are measuring activations')
+        except:
+            pass
+
         # Use same noise for every layer.
-        # im_n = torch.clamp(torch.from_numpy(im_n_initialized), 0, 1).cuda()
-        im_n = torch.clamp(torch.from_numpy(im_n_initialized), ds.min_value, ds.max_value).cuda()
-        # im_n = im.clone().cuda()
-        invert_rep = reference_activations[layer_to_invert].contiguous().view(
+        # metamer = torch.clamp(torch.from_numpy(im_n_initialized), 0, 1).cuda()
+        metamer = torch.clamp(torch.from_numpy(initial_noise), ds.min_value, ds.max_value).cuda()
+        # metamer = im.clone().cuda()
+
+        inverted_reference_representation = reference_activations[layer_to_invert].contiguous().view(
             reference_activations[layer_to_invert].size(0), -1)
 
         # Do the optimization, and save the losses occasionally
         all_losses = {}
 
-        this_loss, _ = calc_loss(model, im_n, invert_rep.clone(), synth_kwargs['custom_loss'])
+        # Note for loss calculation: it takes in the target representation but only the prediction input
+        # Internally it calculates the output and its according representation.
+        # This causes an unnecessary forward pass of the entire model as we do another one below to optimize ...
+        this_loss, _ = calc_loss(model, metamer, inverted_reference_representation.clone(), synth_kwargs['custom_loss'])
         all_losses[0] = this_loss.detach().cpu()
         print('Step %d | Layer %s | Loss %f' % (0, layer_to_invert, this_loss))
+
         # Here because dropout may help optimization for some types of losses
+        # FIXME: what types????? it is not mentioned in the paper
         try:
             model.enable_dropout_functions()
             print('Turning on dropout functions because we are starting synthesis')
         except:
             pass
-        (predictions_out, rep_out, all_outputs_out), xadv = model(im_n, invert_rep.clone(), make_adv=True,
+
+        (predictions_out, rep_out, all_outputs_out), xadv = model(metamer, inverted_reference_representation.clone(),
+                                                                  make_adv=True,
                                                                   **synth_kwargs, with_latent=True, fake_relu=True)
-        this_loss, _ = calc_loss(model, xadv, invert_rep.clone(), synth_kwargs['custom_loss'])
+        this_loss, _ = calc_loss(model, xadv, inverted_reference_representation.clone(), synth_kwargs['custom_loss'])
         all_losses[synth_kwargs['iterations']] = this_loss.detach().cpu()
         print('Step %d | Layer %s | Loss %f' % (synth_kwargs['iterations'], layer_to_invert, this_loss))
         for i in range(NUMREPITER - 1):
@@ -209,12 +216,15 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
                 except:
                     pass
 
-            im_n = xadv
+            metamer = xadv
             synth_kwargs['step_size'] = synth_kwargs['step_size'] / 2  # constrain max L2 norm of grad desc desc
-            (predictions_out, rep_out, all_outputs_out), xadv = model(im_n, invert_rep.clone(), make_adv=True,
+            (predictions_out, rep_out, all_outputs_out), xadv = model(metamer,
+                                                                      inverted_reference_representation.clone(),
+                                                                      make_adv=True,
                                                                       **synth_kwargs, with_latent=True,
                                                                       fake_relu=True)  # Image inversion using PGD
-            this_loss, _ = calc_loss(model, xadv, invert_rep.clone(), synth_kwargs['custom_loss'])
+            this_loss, _ = calc_loss(model, xadv, inverted_reference_representation.clone(),
+                                     synth_kwargs['custom_loss'])
             all_losses[(i + 2) * synth_kwargs['iterations']] = this_loss.detach().cpu()
             print('Step %d | Layer %s | Loss %f' % (synth_kwargs['iterations'] * (i + 2), layer_to_invert, this_loss))
 
@@ -379,10 +389,10 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
             synth_label = np.argmax(synth_predictions)
 
             plt.subplot(4, BATCH_SIZE, i + 1)
-            if im[i].shape[0] == 3:
-                plt.imshow((np.rollaxis(np.array(im[i].cpu().numpy()), 0, 3)), interpolation='none')
-            elif im[i].shape[0] == 1:
-                plt.imshow((np.array(im[i].cpu().numpy())[0, :, :]), interpolation='none', cmap='gray')
+            if reference_image[i].shape[0] == 3:
+                plt.imshow((np.rollaxis(np.array(reference_image[i].cpu().numpy()), 0, 3)), interpolation='none')
+            elif reference_image[i].shape[0] == 1:
+                plt.imshow((np.array(reference_image[i].cpu().numpy())[0, :, :]), interpolation='none', cmap='gray')
             else:
                 raise ValueError('Image dimensions are not appropriate for saving. Check dimensions')
             plt.title('Layer %s, Image %d, Predicted Orig Label "%s" \n Orig Coch' % (
@@ -391,9 +401,9 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
 
             #     for i in range(BATCH_SIZE):
             plt.subplot(4, BATCH_SIZE, BATCH_SIZE + i + 1)
-            if im[i].shape[0] == 3:
+            if reference_image[i].shape[0] == 3:
                 plt.imshow((np.rollaxis(np.array(xadv[i].cpu().numpy()), 0, 3)), interpolation='none')
-            elif im[i].shape[0] == 1:
+            elif reference_image[i].shape[0] == 1:
                 plt.imshow((np.array(xadv[i].cpu().numpy())[0, :, :]), interpolation='none', cmap='gray')
             else:
                 raise ValueError('Image dimensions are not appropriate for saving. Check dimensions')
@@ -449,29 +459,30 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
             plt.close()
 
             if layer_idx == 0:
-                if im[i].shape[0] == 3:
+                if reference_image[i].shape[0] == 3:
                     orig_image = Image.fromarray(
-                        (np.rollaxis(np.array(im[i].cpu().numpy()), 0, 3) * scale_image_save_PIL_factor).astype(
+                        (np.rollaxis(np.array(reference_image[i].cpu().numpy()), 0,
+                                     3) * scale_image_save_PIL_factor).astype(
                             'uint8'))
-                elif im[i].shape[0] == 1:
+                elif reference_image[i].shape[0] == 1:
                     orig_image = Image.fromarray(
-                        (np.array(im[i].cpu().numpy())[0] * scale_image_save_PIL_factor).astype('uint8'))
+                        (np.array(reference_image[i].cpu().numpy())[0] * scale_image_save_PIL_factor).astype('uint8'))
                 orig_image.save(base_filepath + '/orig.png', 'PNG')
 
             # Only save the individual image if the layer optimization succeeded
             if synth_success or OVERRIDE_SAVE:
-                if im[i].shape[0] == 3:
+                if reference_image[i].shape[0] == 3:
                     synth_image = Image.fromarray(
                         (np.rollaxis(np.array(xadv[i].cpu().numpy()), 0, 3) * scale_image_save_PIL_factor).astype(
                             'uint8'))
-                elif im[i].shape[0] == 1:
+                elif reference_image[i].shape[0] == 1:
                     synth_image = Image.fromarray(
                         (np.array(xadv[i].cpu().numpy())[0] * scale_image_save_PIL_factor).astype('uint8'))
                 synth_image.save(layer_filepath + '_synth.png', 'PNG')
 
 
 def main(raw_args=None):
-    #########PARSE THE ARGUMENTS FOR THE FUNCTION#########
+    ######### PARSE THE ARGUMENTS FOR THE FUNCTION #########
     parser = argparse.ArgumentParser(description='Input the sound indices and the layers to match')
     parser.add_argument('SIDX', metavar='I', type=int, help='index into the sound list for the time_average sound')
     parser.add_argument('-L', '--LOSSFUNCTION', metavar='--L', type=str, default='inversion_loss_layer',
@@ -501,13 +512,13 @@ def main(raw_args=None):
     LOSS_FUNCTION = args.LOSSFUNCTION
     INPUTIMAGEFUNCNAME = args.INPUTIMAGEFUNC
     RANDOMSEED = args.RANDOMSEED
-    overwrite_pckl = args.OVERWRITE_PICKLE
+    overwrite_pckl = True  # args.OVERWRITE_PICKLE
     use_dataset_preproc = args.use_dataset_preproc
     step_size = args.STEP_SIZE
     ITERATIONS = args.ITERATIONS
     NUMREPITER = args.NUMREPITER
     NOISE_SCALE = args.NOISE_SCALE
-    OVERRIDE_SAVE = args.OVERRIDE_SAVE
+    OVERRIDE_SAVE = True  # args.OVERRIDE_SAVE
     MODEL_DIRECTORY = args.DIRECTORY
 
     run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOMSEED, overwrite_pckl,

@@ -186,7 +186,7 @@ def use_audio_path_specified_audio(WAV_IDX, wav_path=None, wav_word=None,
     return audio_dict
 
 
-def generate_import_image_functions(image_func='small_16_class_imagenet',
+def generate_import_image_functions(image_func='small_16_class_imagenet',  # default when gen: 400_16_class_imagenet_val
                                     im_shape=224,
                                     image_path=None,
                                     image_class=None,
@@ -252,7 +252,8 @@ def medium_256_16_class_imagenet(IMG_IDX, im_shape=224, data_format='NHWC'):
 
 def medium_400_16_class_imagenet_val_images(IMG_IDX, im_shape=224, data_format='NHWC'):
     """
-    Set consists of the 16 image net classes described in https://arxiv.org/pdf/1808.08750.pdf, and this medium dataset consists of 25 images randomly chosen from each class.
+    Set consists of the 16 image net classes described in https://arxiv.org/pdf/1808.08750.pdf,
+    and this medium dataset consists of 25 images randomly chosen from each class.
 
     Images are chosen from the validation set rather than from the training set.
     """
@@ -261,13 +262,14 @@ def medium_400_16_class_imagenet_val_images(IMG_IDX, im_shape=224, data_format='
         glob.glob('%s/*.JPEG' % image_locations)) == 400, 'Did not find exactly 400 images in %s' % image_locations
     image_name = glob.glob('%s/%d_*' % (image_locations, IMG_IDX))[0].split('/')[-1]  # image_list[IMG_IDX]
     assert int(image_name.split('_')[0]) == IMG_IDX, 'Check the ordering for the images'
+
     img_pil = Image.open(os.path.join(image_locations, image_name))
     width, height = img_pil.size
     smallest_dim = min((width, height))
-    left = (width - smallest_dim) / 2
-    right = (width + smallest_dim) / 2
-    top = (height - smallest_dim) / 2
-    bottom = (height + smallest_dim) / 2
+    left = (width - smallest_dim) // 2
+    right = (width + smallest_dim) // 2
+    top = (height - smallest_dim) // 2
+    bottom = (height + smallest_dim) // 2
     img_pil = img_pil.crop((left, top, right, bottom))
     img_pil = img_pil.resize((im_shape, im_shape))
     img_pil.load()
