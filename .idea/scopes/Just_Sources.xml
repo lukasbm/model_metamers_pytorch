@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="Just Sources" pattern="(!ext:*/&amp;&amp;!file[model_metamers_pytorch]:*/||file[model_metamers_pytorch]:analysis_scripts//*)&amp;&amp;!file[model_metamers_pytorch]:assets//*||file[model_metamers_pytorch]:robustness//*||file:build_network.py" />
+</component>

@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="Sources No Models" pattern="((!file:*/&amp;&amp;!file[model_metamers_pytorch]:*/||file[model_metamers_pytorch]:analysis_scripts//*)&amp;&amp;!file[model_metamers_pytorch]:assets//*||file[model_metamers_pytorch]:robustness//*||file:build_network.py)&amp;&amp;!file[model_metamers_pytorch]:robustness/audio_functions//*&amp;&amp;!file[model_metamers_pytorch]:robustness/audio_models//*&amp;&amp;!file[model_metamers_pytorch]:robustness/imagenet_models//*&amp;&amp;!file:robustness/tools/audio_helpers.py&amp;&amp;!ext:*/" />
+</component>
