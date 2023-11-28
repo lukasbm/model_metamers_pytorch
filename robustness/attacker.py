@@ -28,8 +28,11 @@ called directly---instead, these arguments are passed along from
 """
 
 import os
+from typing import Literal, Union
 
 import torch as ch
+
+from .attack_steps import AttackerStep
 
 if int(os.environ.get("NOTEBOOK_MODE", 0)) == 1:
     from tqdm import tqdm_notebook as tqdm
@@ -60,7 +63,7 @@ class Attacker(ch.nn.Module):
     documents the arguments supported for adversarial attacks specifically.
     """
 
-    def __init__(self, model, dataset):
+    def __init__(self, model: ch.nn.Module, dataset):
         """
         Initialize the Attacker
 
@@ -75,7 +78,9 @@ class Attacker(ch.nn.Module):
         self.dataset_min_value = dataset.min_value
         self.dataset_max_value = dataset.max_value
 
-    def forward(self, x, target, *_, constraint, eps, step_size, iterations,
+    def forward(self, x, target, *_,
+                constraint: Union[Literal["inf", "2", "unconstrained", "inf_corner", "l2_enforcenorm"], AttackerStep],
+                eps, step_size, iterations,
                 random_start=False, random_restarts=False, do_tqdm=False,
                 targeted=False, custom_loss=None, should_preproc=True,
                 orig_input=None, use_best=True, return_image=True, est_grad=None):
@@ -87,8 +92,7 @@ class Attacker(ch.nn.Module):
 
         Args:
             x, target (ch.tensor) : see :meth:`robustness.attacker.AttackerModel.forward`
-            constraint
-                ("2"|"inf"|"unconstrained"|"fourier"|:class:`~robustness.attack_steps.AttackerStep`)
+            constraint ("inf", "2", "unconstrained", "inf_corner", "l2_enforcenorm")
                 : threat model for adversarial attacks (:math:`\ell_2` ball,
                 :math:`\ell_\infty` ball, :math:`[0, 1]^n`, or
                 custom AttackerStep subclass).
@@ -118,7 +122,7 @@ class Attacker(ch.nn.Module):
             est_grad (tuple|None) : If not None (default), then these are
                 :samp:`(query_radius [R], num_queries [N])` to use for estimating the
                 gradient instead of autograd. We use the spherical gradient
-                estimator, shown below, along with antithetic sampling [#f1]_
+                estimator, shown below, along with antithetic sampling [#f1]
                 to reduce variance:
                 :math:`\\nabla_x f(x) \\approx \\sum_{i=0}^N f(x + R\\cdot
                 \\vec{\\delta_i})\\cdot \\vec{\\delta_i}`, where
@@ -137,7 +141,8 @@ class Attacker(ch.nn.Module):
 
         # Can provide a different input to make the feasible set around
         # instead of the initial point
-        if orig_input is None: orig_input = x.detach()
+        if orig_input is None:
+            orig_input = x.detach()
         orig_input = orig_input.cuda()
 
         # Multiplier for gradient ascent [untargeted] or descent [targeted]
@@ -146,6 +151,7 @@ class Attacker(ch.nn.Module):
         # Initialize step class and attacker criterion
         criterion = ch.nn.CrossEntropyLoss(reduction='none').cuda()
         step_class = STEPS[constraint] if isinstance(constraint, str) else constraint
+        # instantiate the step class
         step = step_class(eps=eps, orig_input=orig_input, step_size=step_size,
                           min_value=self.dataset_min_value, max_value=self.dataset_max_value)
 
@@ -159,25 +165,27 @@ class Attacker(ch.nn.Module):
             output = self.model(inp)
             if custom_loss:
                 return custom_loss(self.model, inp, target)
-
             return criterion(output, target), output
 
-        # Main function for making adversarial examples
+        # Main function for making adversarial examples using PGD
         def get_adv_examples(x):
             # Random start (to escape certain types of gradient masking)
             if random_start:
                 x = step.random_perturb(x)
 
             iterator = range(iterations)
-            if do_tqdm: iterator = tqdm(iterator)
+            if do_tqdm:
+                iterator = tqdm(iterator)
 
             # Keep track of the "best" (worst-case) loss and its
             # corresponding input
             best_loss = None
             best_x = None
 
-            # A function that updates the best loss and best input
             def replace_best(loss, bloss, x, bx):
+                """
+                A function that updates the best loss and best input
+                """
                 if bloss is None:
                     bx = x.clone().detach()
                     bloss = loss.clone().detach()
@@ -191,7 +199,7 @@ class Attacker(ch.nn.Module):
             # PGD iterates
             for _ in iterator:
                 x = x.clone().detach().requires_grad_(True)
-                losses, out = calc_loss(step.to_image(x), target)
+                losses, _ = calc_loss(step.to_image(x), target)
                 assert losses.shape[0] == x.shape[0], \
                     'Shape of losses must match input!'
 
@@ -199,6 +207,7 @@ class Attacker(ch.nn.Module):
 
                 if step.use_grad:
                     if est_grad is None:
+                        # invert loss if targeted
                         grad, = ch.autograd.grad(m * loss, [x])
                     else:
                         f = lambda _x, _y: m * calc_loss(step.to_image(_x), _y)[0]
@@ -316,7 +325,6 @@ class AttackerModel(ch.nn.Module):
                 visible effect without :samp:`with_latent=True`.
             with_image (bool) : if :samp:`False`, only return the model output
                 (even if :samp:`make_adv == True`).
-
         """
         # Useful for running part of the model first, before generating the 
         # adverarial examples for the rest of the model

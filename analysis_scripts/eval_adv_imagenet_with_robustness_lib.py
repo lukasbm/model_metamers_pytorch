@@ -1,14 +1,13 @@
-import os
 import argparse
 import os
 import pickle
 
-import build_network
 import numpy as np
 import torch as ch
 from cox.utils import Parameters
 from torchvision import transforms
 
+import build_network
 from robustness import train, defaults
 from robustness.datasets import ImageNet
 

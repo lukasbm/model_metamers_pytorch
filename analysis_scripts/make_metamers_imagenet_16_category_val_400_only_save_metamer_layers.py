@@ -18,6 +18,7 @@ import torch
 from PIL import Image
 from matplotlib import pylab as plt
 
+import robustness.attacker
 from analysis_scripts.default_paths import WORDNET_ID_TO_HUMAN_PATH
 from analysis_scripts.helpers_16_choice import force_16_choice
 from analysis_scripts.input_helpers import generate_import_image_functions
@@ -70,6 +71,8 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
     np.random.seed(RANDOMSEED)
 
     model, ds, metamer_layers = build_network.main(return_metamer_layers=True)
+    assert isinstance(model, torch.nn.Module), "model is no valid torch module"
+    assert type(model) is robustness.attacker.AttackerModel, "model is no valid robustness attacker model"
 
     # imagenet_idx_to_wnid = {v:k for k, v in ds.wnid_to_idx.items()}
 
@@ -120,7 +123,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
         raise FileExistsError('The file %s already exists, and you are not forcing overwriting' % pckl_path)
 
     # Send model to GPU (b/c we haven't loaded a model, so it is not on the GPU)
-    model = model.cuda()
+    model: robustness.attacker.AttackerModel = model.cuda()
     model.eval()
 
     with torch.no_grad():
@@ -146,18 +149,20 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
 
     for layer_to_invert in metamer_layers:
         # Choose the inversion parameters (will run 4x the iterations, reducing the learning rate each time)
+        # will be passed to Attacker to generate adv example
         synth_kwargs = {
-            # simple loss as in the paper
+            # same simple loss as in the paper
             'custom_loss': custom_synthesis_losses.LOSSES[LOSS_FUNCTION](layer_to_invert, normalize_loss=True),
-            'constraint': '2',
-            'eps': 100000,
-            'step_size': step_size,  # FIXME: the maximum l2 norm?? that is halved every 3000 iterations?
-            'iterations': ITERATIONS,  # 3000
-            'do_tqdm': False,
+            'constraint': '2',  # norm constraint. L2, L_inf, etc.
+            'eps': 100000,  # why this high? this is weird, usually 8/255 or some is used
+            'step_size': step_size,  # essentially works like learning rate. halved every 3000 iterations (default: 1.0)
+            'iterations': ITERATIONS,  # iterations to generate one adv example
+            'do_tqdm': True,
             'targeted': True,
             'use_best': False
         }
 
+        # set dropout enable functions. For some reason they are part of the loss? (except the default InversionLoss)
         if hasattr(synth_kwargs['custom_loss'], 'enable_dropout_flag'):
             model.enable_dropout_flag = synth_kwargs['custom_loss'].enable_dropout_flag
             model.enable_dropout_functions = synth_kwargs['custom_loss']._enable_dropout_functions
@@ -204,6 +209,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
             with_latent=True,
             fake_relu=True
         )
+        # FIXME: why is the adversarial example inferenced again? AttackerModel.Forward already does it (prediction_activations)
         this_loss, _ = calc_loss(model, adv_ex, inverted_reference_representation.clone(), synth_kwargs['custom_loss'])
         all_losses[synth_kwargs['iterations']] = this_loss.detach().cpu()
         print('Step %d | Layer %s | Loss %f' % (synth_kwargs['iterations'], layer_to_invert, this_loss))
@@ -240,7 +246,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
 
         print("all iteration steps completed!")
 
-        if type(prediction_output) == dict:
+        if type(prediction_output) is dict:
             predictions_out_dict[layer_to_invert] = {}
             for key, value in prediction_output.items():
                 prediction_output[key] = value.detach().cpu()
@@ -307,7 +313,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
     pckl_output_dict['step_size'] = step_size
 
     for key in reference_activations:
-        if type(reference_activations[key]) == dict:
+        if type(reference_activations[key]) is dict:
             for dict_key, dict_value in reference_activations[key].items():
                 if '%s/%s' % (key, dict_key) in metamer_layers:
                     reference_activations[key][dict_key] = dict_value.detach().cpu()
@@ -320,13 +326,13 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
                 reference_activations[key] = None
 
     pckl_output_dict['all_outputs_orig'] = reference_activations
-    if type(reference_output) == dict:
+    if type(reference_output) is dict:
         for dict_key, dict_value in reference_output.items():
             reference_output[dict_key] = dict_value.detach().cpu()
     else:
         reference_output = reference_output.detach().cpu()
     pckl_output_dict['predictions_orig'] = reference_output
-    if type(reference_rep) == dict:
+    if type(reference_rep) is dict:
         for dict_key, dict_value in reference_rep.items():
             if reference_rep is not None:
                 reference_rep[dict_key] = dict_value.detach().cpu()

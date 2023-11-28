@@ -18,7 +18,8 @@ ATTACK_KWARG_KEYS = [
     'step_size',
     'iterations',
     'random_start',
-    'random_restarts']
+    'random_restarts'
+]
 
 CKPTS_SCHEMA = {
     'epoch': int,

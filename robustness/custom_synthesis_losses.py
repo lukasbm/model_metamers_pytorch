@@ -21,6 +21,7 @@ class InversionLossLayer(torch.nn.Module):
         else:
             loss = torch.norm(rep - targ, dim=1)
         return loss, None
+        # FIXME: should we call torch.mean(loss) to only return a scalar?
 
 
 class InversionLossLayerWithRandomSingleUnitOptimizationDropout(torch.nn.Module):
