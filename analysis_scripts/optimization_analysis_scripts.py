@@ -142,7 +142,7 @@ def get_metamer_distances_wsn_word(model_path,
                 layer_correct_tmp[metamer_layer] = (synth_prediction == orig_prediction)
                 null_overlap_glob = glob.glob(
                     os.path.join(synth_path_dir, 'null_overlap_images', '*_%s_synth.wav' % metamer_layer))
-                if len(null_overlap_glob) == 1:  ## Say that the label isn't matching if we didn't pass null.
+                if len(null_overlap_glob) == 1:  # Say that the label isn't matching if we didn't pass null.
                     layer_correct_tmp[metamer_layer] = False
                 assert len(null_overlap_glob) <= 1, 'Found multiple null overlap images for %s' % synth_path_dir
 

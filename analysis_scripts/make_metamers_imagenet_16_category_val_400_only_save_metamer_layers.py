@@ -127,7 +127,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
     model.eval()
 
     with torch.no_grad():
-        (reference_output, reference_rep, reference_activations), reference_image = model(
+        (reference_output, reference_representation, reference_activations), reference_image = model(
             reference_image.cuda(), with_latent=True, fake_relu=True)
 
     # Calculate human-readable labels and 16 category labels for the original image
@@ -135,7 +135,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
     for b in range(BATCH_SIZE):
         try:
             reference_predictions.append(reference_output[b].detach().cpu().numpy())
-        except KeyError:
+        except KeyError:  # FIXME: this should not happen for ImageNet data
             reference_predictions.append(reference_output['signal/word_int'][b].detach().cpu().numpy())
 
     # Get the predicted 16 category label
@@ -157,7 +157,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
             'eps': 100000,  # why this high? this is weird, usually 8/255 or some is used
             'step_size': step_size,  # essentially works like learning rate. halved every 3000 iterations (default: 1.0)
             'iterations': ITERATIONS,  # iterations to generate one adv example
-            'do_tqdm': True,
+            'do_tqdm': False,
             'targeted': True,
             'use_best': False
         }
@@ -209,7 +209,9 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
             with_latent=True,
             fake_relu=True
         )
-        # FIXME: why is the adversarial example inferenced again? AttackerModel.Forward already does it (prediction_activations)
+
+        # FIXME: why is the adversarial example inferenced again in the loss?
+        #   AttackerModel.Forward already does it (prediction_activations)
         this_loss, _ = calc_loss(model, adv_ex, inverted_reference_representation.clone(), synth_kwargs['custom_loss'])
         all_losses[synth_kwargs['iterations']] = this_loss.detach().cpu()
         print('Step %d | Layer %s | Loss %f' % (synth_kwargs['iterations'], layer_to_invert, this_loss))
@@ -245,8 +247,10 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
             print('Step %d | Layer %s | Loss %f' % (synth_kwargs['iterations'] * (i + 2), layer_to_invert, this_loss))
 
         print("all iteration steps completed!")
+        print("losses:", all_losses)
 
-        if type(prediction_output) is dict:
+        # save last prediction for later evaluation
+        if type(prediction_output) is dict:  # it should be a logits tensor though
             predictions_out_dict[layer_to_invert] = {}
             for key, value in prediction_output.items():
                 prediction_output[key] = value.detach().cpu()
@@ -254,25 +258,29 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
         else:
             predictions_out_dict[layer_to_invert] = prediction_output.detach().cpu()
 
-        try:
+        # save last representation for later evaluation
+        try:  # should be None though
             rep_out_dict[layer_to_invert] = prediction_representation.detach().cpu()
         except AttributeError:
             rep_out_dict[layer_to_invert] = prediction_representation
 
+        # clean up and save last prediction activations for later evaluation
         for key in prediction_activations:
-            if type(prediction_activations[key]) == dict:
+            if type(prediction_activations[key]) is dict:  # it should be a tensor though
                 for dict_key, dict_value in prediction_activations[key].items():
                     if '%s/%s' % (key, dict_key) in metamer_layers:
                         prediction_activations[key][dict_key] = dict_value.detach().cpu()
                     else:
                         prediction_activations[key][dict_key] = None
             else:
+                # fake_relu has to be specified explicitly in build_network.metamer_layers
+                # calling fake_relu in the forward method only makes sense if it is specified in metamer_layers
                 if key in metamer_layers:
                     prediction_activations[key] = prediction_activations[key].detach().cpu()
                 else:
                     prediction_activations[key] = None
 
-        # Calculate the predictions and save them in the dictioary
+        # Calculate the predictions and save them in the dictionary
         synth_predictions = []
         for b in range(BATCH_SIZE):
             try:
@@ -286,34 +294,38 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
         print('Layer %s, Synth Image 16 Category Prediction: %s' % (
             layer_to_invert, synth_16_cat_prediction))
 
-        all_outputs_out_dict[layer_to_invert] = prediction_activations
+        all_outputs_out_dict[layer_to_invert] = prediction_activations  # includes all activations, not output!
         xadv_dict[layer_to_invert] = adv_ex.detach().cpu()
         all_losses_dict[layer_to_invert] = all_losses
         predicted_labels_out_dict[layer_to_invert] = synth_predictions
         predicted_16_cat_labels_out_dict[layer_to_invert] = synth_16_cat_prediction
 
-    print("generation complete?")
+    print("iteration complete, start evaluation")
 
+    # add params and outputs to pckl
     pckl_output_dict = {}
+    # outputs
+    pckl_output_dict['xadv_dict'] = xadv_dict
+    pckl_output_dict['all_losses'] = all_losses
+    pckl_output_dict['all_outputs_out_dict'] = all_outputs_out_dict
+    pckl_output_dict['predicted_labels_out_dict'] = predicted_labels_out_dict
+    pckl_output_dict['predicted_16_cat_labels_out_dict'] = predicted_16_cat_labels_out_dict
     pckl_output_dict['predictions_out_dict'] = predictions_out_dict
     pckl_output_dict['rep_out_dict'] = rep_out_dict
-    pckl_output_dict['all_outputs_out_dict'] = all_outputs_out_dict
-    pckl_output_dict['xadv_dict'] = xadv_dict
-    pckl_output_dict['image_dict'] = image_dict
-    pckl_output_dict['RANDOMSEED'] = RANDOMSEED
-    pckl_output_dict['metamer_layers'] = metamer_layers
-    pckl_output_dict['all_losses'] = all_losses
-    pckl_output_dict['ITERATIONS'] = ITERATIONS
-    pckl_output_dict['NUMREPITER'] = NUMREPITER
-    pckl_output_dict['predicted_16_cat_labels_out_dict'] = predicted_16_cat_labels_out_dict
-    pckl_output_dict['predicted_labels_out_dict'] = predicted_labels_out_dict
     pckl_output_dict['orig_16_cat_prediction'] = reference_16_cat_prediction
     pckl_output_dict['orig_predictions'] = reference_predictions
+    # params
+    pckl_output_dict['image_dict'] = image_dict  # reference image
+    pckl_output_dict['metamer_layers'] = metamer_layers
+    pckl_output_dict['RANDOMSEED'] = RANDOMSEED
+    pckl_output_dict['ITERATIONS'] = ITERATIONS
+    pckl_output_dict['NUMREPITER'] = NUMREPITER
     pckl_output_dict['NOISE_SCALE'] = NOISE_SCALE
     pckl_output_dict['step_size'] = step_size
 
+    # clean up and save reference activations for later evaluation
     for key in reference_activations:
-        if type(reference_activations[key]) is dict:
+        if type(reference_activations[key]) is dict:  # should be a tensor though
             for dict_key, dict_value in reference_activations[key].items():
                 if '%s/%s' % (key, dict_key) in metamer_layers:
                     reference_activations[key][dict_key] = dict_value.detach().cpu()
@@ -324,29 +336,32 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
                 reference_activations[key] = reference_activations[key].detach().cpu()
             else:
                 reference_activations[key] = None
-
     pckl_output_dict['all_outputs_orig'] = reference_activations
+
+    # clean up and save reference output for later evaluation
     if type(reference_output) is dict:
         for dict_key, dict_value in reference_output.items():
             reference_output[dict_key] = dict_value.detach().cpu()
     else:
         reference_output = reference_output.detach().cpu()
     pckl_output_dict['predictions_orig'] = reference_output
-    if type(reference_rep) is dict:
-        for dict_key, dict_value in reference_rep.items():
-            if reference_rep is not None:
-                reference_rep[dict_key] = dict_value.detach().cpu()
+
+    # clean up and save reference representation for later evaluation
+    if type(reference_representation) is dict:
+        for dict_key, dict_value in reference_representation.items():
+            if reference_representation is not None:
+                reference_representation[dict_key] = dict_value.detach().cpu()
     else:
-        if reference_rep is not None:
-            reference_rep = reference_rep.detach().cpu()
-    pckl_output_dict['rep_orig'] = reference_rep
+        if reference_representation is not None:
+            reference_representation = reference_representation.detach().cpu()
+    pckl_output_dict['rep_orig'] = reference_representation
     pckl_output_dict['sound_orig'] = reference_image.detach().cpu()
 
     # Just use the name of the loss to save synthkwargs don't save the function
     synth_kwargs['custom_loss'] = LOSS_FUNCTION
     pckl_output_dict['synth_kwargs'] = synth_kwargs
 
-    # Calculate distance measures for each layer, use the cpu versions
+    # Calculate distance measures for each layer, use the cpu versions of tensors
     all_distance_measures = {}
     for layer_to_invert in metamer_layers:
         all_distance_measures[layer_to_invert] = {}
@@ -380,7 +395,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
         prediction_activations = all_outputs_out_dict[layer_to_invert]
 
         fig = plt.figure(figsize=(BATCH_SIZE * 5, 12))
-        for i in range(BATCH_SIZE):
+        for i in range(BATCH_SIZE):  # should only be one iteration lol
             # Get labels to use for the plots
             try:
                 reference_predictions = reference_output[i].detach().cpu().numpy()
@@ -389,7 +404,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
                 reference_predictions = reference_output['signal/word_int'][i].detach().cpu().numpy()
                 synth_predictions = reference_output['signal/word_int'][i].detach().cpu().numpy()
 
-            # Get the predicted 16 category label
+            # Get the predicted 16 category label (re-evaluating for some reason??)
             reference_16_cat_prediction = force_16_choice(np.flip(np.argsort(reference_predictions.ravel(), 0)),
                                                           CLASS_DICT['ImageNet'])
             synth_16_cat_prediction = force_16_choice(np.flip(np.argsort(synth_predictions.ravel(), 0)),
@@ -399,7 +414,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
             print('Layer %s, Image %d, Synth Image 16 Category Prediction: %s' % (
                 layer_to_invert, i, synth_16_cat_prediction))
 
-            # Set synthesis sucess based on the 16 category labels -- we can later evaluate the 1000 category labels.
+            # Set synthesis success based on the 16 category labels -- we can later evaluate the 1000 category labels.
             # FIXME: does the 1000 class evaluation happen?
             synth_success = reference_16_cat_prediction == synth_16_cat_prediction
 
@@ -417,7 +432,6 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
                 layer_to_invert, i,  # CLASS_DICT['ImageNet'][int(targ[i].cpu().numpy())]))
                 CLASS_DICT['ImageNet'][int(orig_label)]))
 
-            #     for i in range(BATCH_SIZE):
             plt.subplot(4, BATCH_SIZE, BATCH_SIZE + i + 1)
             if reference_image[i].shape[0] == 3:
                 plt.imshow((np.rollaxis(np.array(adv_ex[i].cpu().numpy()), 0, 3)), interpolation='none')
@@ -429,7 +443,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
                 layer_to_invert, i,  # CLASS_DICT['ImageNet'][int(targ[i].cpu().numpy())]))
                 CLASS_DICT['ImageNet'][int(synth_label)]))
 
-            #     for i in range(BATCH_SIZE):
+            # plot for current layer
             plt.subplot(4, BATCH_SIZE, BATCH_SIZE * 2 + i + 1)
             plt.scatter(np.ravel(np.array(reference_activations[layer_to_invert].cpu())[i, :]),
                         np.ravel(prediction_activations[layer_to_invert].cpu().detach().numpy()[i, :]))
@@ -438,9 +452,9 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
             plt.xlabel('Orig Activations (%s)' % layer_to_invert)
             plt.ylabel('Synth Activations (%s)' % layer_to_invert)
 
-            #     for i in range(BATCH_SIZE):
+            # plot for final layer
             plt.subplot(4, BATCH_SIZE, BATCH_SIZE * 3 + i + 1)
-            if type(reference_activations['final']) == dict:
+            if type(reference_activations['final']) is dict:
                 dict_keys = list(reference_activations['final'].keys())  # So we ensure the same order
                 plot_outputs_final = np.concatenate(
                     [np.array(reference_activations['final'][task_key].cpu()[i, :]).ravel() for task_key in dict_keys])
@@ -459,7 +473,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
 
             fig.savefig(layer_filepath + '_image_optimization.png')
 
-            #     for i in range(BATCH_SIZE):
+            # print the information also in the console
             try:
                 print('Layer %s, Image %d, Label "%s", Prediction Orig "%s", Prediction Synth "%s"' % (
                     layer_to_invert, i,
@@ -477,6 +491,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
 
             plt.close()
 
+            # save reference image
             if layer_idx == 0:
                 if reference_image[i].shape[0] == 3:
                     orig_image = Image.fromarray(
@@ -488,7 +503,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
                         (np.array(reference_image[i].cpu().numpy())[0] * scale_image_save_PIL_factor).astype('uint8'))
                 orig_image.save(base_filepath + '/orig.png', 'PNG')
 
-            # Only save the individual image if the layer optimization succeeded
+            # Only save the individual generated image if the layer optimization succeeded
             if synth_success or OVERRIDE_SAVE:
                 if reference_image[i].shape[0] == 3:
                     synth_image = Image.fromarray(

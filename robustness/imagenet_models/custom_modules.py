@@ -12,7 +12,7 @@ class FakeReLU(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_output):
-        return grad_output
+        return grad_output  # this is done to avoid the negative gradients
 
 
 class FakeReLUM(nn.Module):

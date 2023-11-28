@@ -265,6 +265,8 @@ def medium_400_16_class_imagenet_val_images(IMG_IDX, im_shape=224, data_format='
 
     img_pil = Image.open(os.path.join(image_locations, image_name))
     width, height = img_pil.size
+
+    # center crop the image?
     smallest_dim = min((width, height))
     left = (width - smallest_dim) // 2
     right = (width + smallest_dim) // 2
@@ -427,8 +429,8 @@ def make_400_16_class_imagenet_val_data():
             image_path_dict[image_class].append(random_image.split('images_complete/')[-1])
             copyfile(os.path.join(image_net_path, random_image), os.path.join(output_image_path,
                                                                               '%d_%d_%s_%s_%s.JPEG' % (
-                                                                              small_dataset_idx, image_class_idx,
-                                                                              image_class, class_id, image_id)))
+                                                                                  small_dataset_idx, image_class_idx,
+                                                                                  image_class, class_id, image_id)))
             small_dataset_idx += 1
             check_idx += 1
             class_total += 1
@@ -456,9 +458,10 @@ def make_256_16_class_imagenet():
             class_name = random_image.split('_')[0]
             copyfile(os.path.join(image_net_path, class_name, random_image), os.path.join(output_image_path,
                                                                                           '%d_%d_%s_%s' % (
-                                                                                          small_dataset_idx,
-                                                                                          image_class_idx, image_class,
-                                                                                          random_image)))
+                                                                                              small_dataset_idx,
+                                                                                              image_class_idx,
+                                                                                              image_class,
+                                                                                              random_image)))
             small_dataset_idx += 1
 
 

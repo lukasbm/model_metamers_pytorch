@@ -221,7 +221,8 @@ class Attacker(ch.nn.Module):
 
                     x = step.step(x, grad)
                     x = step.project(x)
-                    if do_tqdm: iterator.set_description("Current loss: {l}".format(l=loss))
+                    if do_tqdm:
+                        iterator.set_description("Current loss: {l}".format(l=loss))
 
             # Save computation (don't compute last loss) if not use_best
             if not use_best:
@@ -338,9 +339,7 @@ class AttackerModel(ch.nn.Module):
             prev_training = bool(self.training)
             self.eval()
             adv = self.attacker(inp, target, **attacker_kwargs)
-            if prev_training:
-                self.train()
-
+            self.train(prev_training)  # restore mode
             inp = adv
 
         if with_image:
