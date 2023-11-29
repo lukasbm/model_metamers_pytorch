@@ -7,6 +7,8 @@ Changes include:
 - renamed variables
 - added documentation
 - fixed software environment (conda) to be more reproducible
+- numerous bug fixes
+- numerous code style fixes and formatting
 
 -------
 
