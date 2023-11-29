@@ -396,7 +396,7 @@ def print_number_of_metamers_passing_criteria_imagenet(all_layer_correct,
     the same last activation for the 1000 way task and for the 16 way task. 
 
     If return_metamer_distances is True, returns a dictionary that contains a list
-    of all of the metamer distances in distance_measure_each_metamer. 
+    of all the metamer distances in distance_measure_each_metamer.
     """
     total_correct_count_1000_class = {}
     for layer_idx, layer in enumerate(all_layer_correct[0].keys()):
@@ -426,6 +426,7 @@ def print_number_of_metamers_passing_criteria_imagenet(all_layer_correct,
         return distance_list
 
 
+# INTERNAL FUNCTION
 def plot_metamer_vs_null(null, metamer_distances, plot_layers,
                          distance_label='Spearman rho',
                          save_plot_path=None,
@@ -501,13 +502,17 @@ def print_all_distance_measures_and_number_of_metamers(check_model_name,
                                                        network_type='image',
                                                        metamer_subset=None,
                                                        check_distance_measures=None):
+    """
+    Runs the full test suite, utilizing all the functions above.
+    """
+
     if network_type == 'image':
         check_model = all_model_info.ALL_NETWORKS_AND_LAYERS_IMAGES[check_model_name]
     elif network_type == 'audio':
         check_model = all_model_info.ALL_NETWORKS_AND_LAYERS_AUDIO[check_model_name]
 
     # Location of where to save a single pickle containing the metamer optimization
-    # criteria (rather than loading all of the invidual files)
+    # criteria (rather than loading all the invidual files)
     save_metamer_distances_location = os.path.join(check_model['location'],
                                                    check_model['metamer_folder'],
                                                    'metamer_distances_saved.pckl')

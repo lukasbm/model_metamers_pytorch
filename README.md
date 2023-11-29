@@ -9,6 +9,7 @@ Changes include:
 - fixed software environment (conda) to be more reproducible
 - numerous bug fixes
 - numerous code style fixes and formatting
+- include some setup and run configurations for PyCharm (`.idea/runConfigurations`)
 
 -------
 
