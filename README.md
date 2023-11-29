@@ -1,3 +1,16 @@
+# Model Metamers Reveal Divergent Invariances Between Biological and Artificial Neural Networks (2023)
+
+NOTE: This repository is a fork of the public release for personal study.
+I have made some changes to the code to make it more user-friendly.
+Changes include:
+
+- renamed variables
+- added documentation
+- fixed software environment (conda) to be more reproducible
+
+-------
+
+
 [![DOI](https://zenodo.org/badge/498570644.svg)](https://zenodo.org/badge/latestdoi/498570644)
 
 Model metamers reveal divergent invariances between biological and artificial neural networks.<br>
@@ -122,6 +135,7 @@ For convenience, a notebook is included
 at [notebooks/All_Experiments_Metamer_Vs_Network_Predictions.ipynb](notebooks/All_Experiments_Metamer_Vs_Network_Predictions.ipynb)
 which loads in and plots
 the human performance and generating network performance for audio and visual behavioral experiments in Feather et al.
+
 2023.
 
 Notebooks are also included that load example metamers for each experiment using jupyter widgets. The audio examples are

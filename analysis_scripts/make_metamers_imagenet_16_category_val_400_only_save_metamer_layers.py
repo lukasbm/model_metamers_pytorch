@@ -216,8 +216,13 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
         all_losses[synth_kwargs['iterations']] = this_loss.detach().cpu()
         print('Step %d | Layer %s | Loss %f' % (synth_kwargs['iterations'], layer_to_invert, this_loss))
 
+        # this iteration is the interesting part!
+        # it is quite simple and basically improves the adversarial example
+        # multiple times using PGD to become the metamer
+        # FIXME: why don't we check the loss etc. in the loop?
+        #   It could avoid "overfitting" and return more recognizable metamers?
         for i in range(NUMREPITER - 1):
-            try:
+            try:  # not relevant for basic inversion loss
                 synth_kwargs['custom_loss'].optimization_count = 0
             except:
                 pass
