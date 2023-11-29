@@ -1,5 +1,7 @@
+# exclude assets and artifacts
 assets
 *.pyc
+*tar
 
 # exclude generated metamers
 model_analysis_folders/**/metamers/
