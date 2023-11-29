@@ -11,12 +11,15 @@ One of the most important files in the repo!
 NOTE: Vision only!
 """
 
-import argparse
 import csv
 import importlib.util
 import os
 import pickle
+from dataclasses import dataclass
+from pprint import pprint
+from typing import Optional, Literal
 
+import simple_parsing
 import torch
 from PIL import Image
 from matplotlib import pylab as plt
@@ -48,15 +51,17 @@ def calc_loss(model, inp, target, custom_loss, should_preproc=True):
     return custom_loss(model.model, inp, target)
 
 
-def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOMSEED, overwrite_pckl,
-                                 use_dataset_preproc, step_size, NOISE_SCALE, ITERATIONS, NUMREPITER,
-                                 OVERRIDE_SAVE, MODEL_DIRECTORY):
-    if MODEL_DIRECTORY is None:
+def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name, seed, overwrite_pckl,
+                                 use_dataset_preproc, step_size, noise_scale, iterations, num_repetitions,
+                                 override_save, model_directory,
+                                 initial_metamer: Literal["noise", "reference", "uniform"] = "noise",
+                                 output_name: Optional[str] = None):
+    if model_directory is None:
         import build_network
-        MODEL_DIRECTORY = ''  # use an empty string to append to saved files.
+        model_directory = ''  # use an empty string to append to saved files.
     else:
         build_network_spec = importlib.util.spec_from_file_location("build_network",
-                                                                    os.path.join(MODEL_DIRECTORY, 'build_network.py'))
+                                                                    os.path.join(model_directory, 'build_network.py'))
         build_network = importlib.util.module_from_spec(build_network_spec)
         build_network_spec.loader.exec_module(build_network)
 
@@ -70,8 +75,8 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
 
     BATCH_SIZE = 1  # TODO(jfeather): remove batch references -- they are unnecessary and not used.
 
-    torch.manual_seed(RANDOMSEED)
-    np.random.seed(RANDOMSEED)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
 
     model, ds, metamer_layers = build_network.main(return_metamer_layers=True)
     assert isinstance(model, torch.nn.Module), "model is no valid torch module"
@@ -86,8 +91,8 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
 
     # Load dataset for metamer generation
     # this loads the image.
-    INPUTIMAGEFUNC = generate_import_image_functions(INPUTIMAGEFUNCNAME, data_format='NCHW')
-    image_dict = INPUTIMAGEFUNC(SIDX)  # load the image from the reduced dataset (400 images, see /assets)
+    INPUTIMAGEFUNC = generate_import_image_functions(input_image_func_name, data_format='NCHW')
+    image_dict = INPUTIMAGEFUNC(image_id)  # load the image from the reduced dataset (400 images, see /assets)
     image_dict['image_orig'] = image_dict['image']
     # Preprocess to be in the format for pytorch
     image_dict['image'] = preproc_image(image_dict['image'], image_dict)  # essentially a ToTensor transform
@@ -114,8 +119,11 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
     targ = torch.from_numpy(np.array([label_idx])).float()
 
     # Set up the saving folder and make sure that the file doesn't already exist
-    synth_name = INPUTIMAGEFUNCNAME + '_' + LOSS_FUNCTION + '_RS%d' % RANDOMSEED + '_I%d' % ITERATIONS + '_N%d' % NUMREPITER
-    base_filepath = os.path.join(MODEL_DIRECTORY, 'metamers/%s/%d_SOUND_%s/' % (synth_name, SIDX, label_name))
+    synth_name = input_image_func_name + '_' + loss_func_name + '_RS%d' % seed + '_I%d' % iterations + '_N%d' % num_repetitions
+    if output_name is None:
+        base_filepath = os.path.join(model_directory, 'metamers/%s/%d_SOUND_%s/' % (synth_name, image_id, label_name))
+    else:
+        base_filepath = os.path.join(model_directory, "metamers", output_name) + "/"
     pckl_path = base_filepath + '/all_metamers_pickle.pckl'
     try:
         os.makedirs(base_filepath)
@@ -148,18 +156,18 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
 
     # Make the noise input (will use for all the input seeds)
     # the noise scale is typically << the noise mean, so we don't have to worry about negative values. 
-    initial_noise = (torch.randn_like(reference_image) * NOISE_SCALE + init_noise_mean).detach().cpu().numpy()
+    initial_noise = (torch.randn_like(reference_image) * noise_scale + init_noise_mean).detach().cpu().numpy()
 
     for layer_to_invert in metamer_layers:
         # Choose the inversion parameters (will run 4x the iterations, reducing the learning rate each time)
         # will be passed to Attacker to generate adv example
         synth_kwargs = {
             # same simple loss as in the paper
-            'custom_loss': custom_synthesis_losses.LOSSES[LOSS_FUNCTION](layer_to_invert, normalize_loss=True),
+            'custom_loss': custom_synthesis_losses.LOSSES[loss_func_name](layer_to_invert, normalize_loss=True),
             'constraint': '2',  # norm constraint. L2, L_inf, etc.
             'eps': 100000,  # why this high? this is weird, usually 8/255 or some is used
             'step_size': step_size,  # essentially works like learning rate. halved every 3000 iterations (default: 1.0)
-            'iterations': ITERATIONS,  # iterations to generate one adv example
+            'iterations': iterations,  # iterations to generate one adv example
             'do_tqdm': False,
             'targeted': True,
             'use_best': False
@@ -178,10 +186,12 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
         except:
             pass
 
-        # Use same noise for every layer.
-        # metamer = torch.clamp(torch.from_numpy(im_n_initialized), 0, 1).cuda()
-        metamer = torch.clamp(torch.from_numpy(initial_noise), ds.min_value, ds.max_value).cuda()
-        # metamer = im.clone().cuda()
+        # set up initial metamer
+        if initial_metamer:
+            metamer = reference_image.clone().cuda()
+        else:
+            # Use same noise for every layer.
+            metamer = torch.clamp(torch.from_numpy(initial_noise), ds.min_value, ds.max_value).cuda()
 
         inverted_reference_representation = reference_activations[layer_to_invert].contiguous().view(
             reference_activations[layer_to_invert].size(0), -1)
@@ -221,16 +231,16 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
 
         # this iteration is the interesting part!
         # it is quite simple and basically improves the adversarial example
-        # multiple times using PGD to become the metamer
+        # multiple times using PGD until it becomes the metamer
         # FIXME: why don't we check the loss etc. in the loop?
         #   It could avoid "overfitting" and return more recognizable metamers?
-        for i in range(NUMREPITER - 1):
+        for i in range(num_repetitions - 1):
             try:  # not relevant for basic inversion loss
                 synth_kwargs['custom_loss'].optimization_count = 0
             except:
                 pass
 
-            if i == NUMREPITER - 2:  # Turn off dropout for the last pass through
+            if i == num_repetitions - 2:  # Turn off dropout for the last pass through
                 # TODO: make this more permanent/flexible
                 # Here because dropout may help optimization for some types of losses
                 try:
@@ -325,10 +335,10 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
     # params
     pckl_output_dict['image_dict'] = image_dict  # reference image
     pckl_output_dict['metamer_layers'] = metamer_layers
-    pckl_output_dict['RANDOMSEED'] = RANDOMSEED
-    pckl_output_dict['ITERATIONS'] = ITERATIONS
-    pckl_output_dict['NUMREPITER'] = NUMREPITER
-    pckl_output_dict['NOISE_SCALE'] = NOISE_SCALE
+    pckl_output_dict['RANDOMSEED'] = seed
+    pckl_output_dict['ITERATIONS'] = iterations
+    pckl_output_dict['NUMREPITER'] = num_repetitions
+    pckl_output_dict['NOISE_SCALE'] = noise_scale
     pckl_output_dict['step_size'] = step_size
 
     # clean up and save reference activations for later evaluation
@@ -366,7 +376,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
     pckl_output_dict['sound_orig'] = reference_image.detach().cpu()
 
     # Just use the name of the loss to save synthkwargs don't save the function
-    synth_kwargs['custom_loss'] = LOSS_FUNCTION
+    synth_kwargs['custom_loss'] = loss_func_name
     pckl_output_dict['synth_kwargs'] = synth_kwargs
 
     # Calculate distance measures for each layer, use the cpu versions of tensors
@@ -512,7 +522,7 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
                 orig_image.save(base_filepath + '/orig.png', 'PNG')
 
             # Only save the individual generated image if the layer optimization succeeded
-            if synth_success or OVERRIDE_SAVE:
+            if synth_success or override_save:
                 if reference_image[i].shape[0] == 3:
                     synth_image = Image.fromarray(
                         (np.rollaxis(np.array(adv_ex[i].cpu().numpy()), 0, 3) * scale_image_save_PIL_factor).astype(
@@ -523,49 +533,43 @@ def run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOM
                 synth_image.save(layer_filepath + '_synth.png', 'PNG')
 
 
-def main(raw_args=None):
-    ######### PARSE THE ARGUMENTS FOR THE FUNCTION #########
-    parser = argparse.ArgumentParser(description='Input the sound indices and the layers to match')
-    parser.add_argument('SIDX', metavar='I', type=int, help='index into the sound list for the time_average sound')
-    parser.add_argument('-L', '--LOSSFUNCTION', metavar='--L', type=str, default='inversion_loss_layer',
-                        help='loss function to use for the synthesis')
-    parser.add_argument('-F', '--INPUTIMAGEFUNC', metavar='--A', type=str, default='400_16_class_imagenet_val',
-                        help='function to use for grabbing the input image sources')
-    parser.add_argument('-R', '--RANDOMSEED', metavar='--R', type=int, default=0,
-                        help='random seed to use for synthesis')
-    parser.add_argument('-I', '--ITERATIONS', metavar='--I', type=int, default=3000,
-                        help='number of iterations in robustness synthesis kwargs')
-    parser.add_argument('-N', '--NUMREPITER', metavar='--N', type=int, default=8,
-                        help='number of repetitions to run the robustness synthesis, each time decreasing the learning rate by half')
-    parser.add_argument('-S', '--OVERRIDE_SAVE', metavar='--S', type=bool, default=False,
-                        help='set to true to save, even if the optimization does not succeed')
-    parser.add_argument('-O', '--OVERWRITE_PICKLE', action='store_true',
-                        help='set to true to overwrite the saved pckl file, if false then exits out if the file already exists')
-    parser.add_argument('-DP', '--DATASET_PREPROC', action='store_true', dest='use_dataset_preproc')
-    parser.add_argument('-E', '--NOISE_SCALE', metavar='--E', type=float, default=1 / 20,
-                        help='multiply the noise by this value for the synthesis initialization')
-    parser.add_argument('-Z', '--STEP_SIZE', metavar='--Z', type=float, default=1,
-                        help='Initial step size for the metamer generation')
-    parser.add_argument('-D', '--DIRECTORY', metavar='--D', type=str, default=None,
-                        help='The directory with the location of the `build_network.py` file. Folder structure for saving metamers will be created in this directory. If not specified, assume this script is located in the same directory as the build_network.py file.')
+@dataclass(slots=True)
+class MetamerGeneratorArgs:
+    model_directory: str = "model_analysis_folders/visual_networks/alexnet"  # The directory with the location of the `build_network.py` file. Folder structure for saving metamers will be created in this directory. If not specified, assume this script is located in the same directory as the build_network.py file.
+    sidx: int = 0  # index into the sound list for the time_average sound, range 0 to 400
+    loss_func_name: str = "inversion_loss_layer"  # loss function to use for the synthesis
+    input_image_func_name: str = "400_16_class_imagenet_val"  # function to use for grabbing the input image sources
+    random_seed: int = 0  # random seed to use for synthesis
+    iterations: int = 3000  # number of iterations in robustness synthesis kwargs (when make_adv=True)
+    num_repetitions: int = 8  # number of repetitions to run the robustness synthesis, each time decreasing the learning rate by half
+    override_save: bool = False  # set to true to save, even if the optimization does not succeed
+    overwrite_pckl: bool = True  # set to true to overwrite the saved pckl file, if false then exits out if the file already exists
+    use_dataset_preproc: bool = False  # preprocess the dataset (by default just something like tv.ToTensor)
+    noise_scale: float = 1 / 20  # multiply the noise by this value for the synthesis initialization (noise init)
+    step_size: float = 1.0  # Initial step size for the metamer generation
+    intial_metamer: Literal[
+        "noise", "reference", "uniform"] = "noise"  # start from the reference image (True) or from noise (False)
 
-    args = parser.parse_args(raw_args)
-    SIDX = args.SIDX
-    LOSS_FUNCTION = args.LOSSFUNCTION
-    INPUTIMAGEFUNCNAME = args.INPUTIMAGEFUNC
-    RANDOMSEED = args.RANDOMSEED
-    overwrite_pckl = True  # args.OVERWRITE_PICKLE
-    use_dataset_preproc = args.use_dataset_preproc
-    step_size = args.STEP_SIZE
-    ITERATIONS = args.ITERATIONS
-    NUMREPITER = args.NUMREPITER
-    NOISE_SCALE = args.NOISE_SCALE
-    OVERRIDE_SAVE = True  # args.OVERRIDE_SAVE
-    MODEL_DIRECTORY = args.DIRECTORY
 
-    run_image_metamer_generation(SIDX, LOSS_FUNCTION, INPUTIMAGEFUNCNAME, RANDOMSEED, overwrite_pckl,
-                                 use_dataset_preproc, step_size, NOISE_SCALE, ITERATIONS, NUMREPITER,
-                                 OVERRIDE_SAVE, MODEL_DIRECTORY)
+def main():
+    args: MetamerGeneratorArgs = simple_parsing.parse(MetamerGeneratorArgs)
+    pprint(args)
+
+    run_image_metamer_generation(
+        image_id=args.sidx,
+        loss_func_name=args.loss_func_name,
+        input_image_func_name=args.input_image_func_name,
+        seed=args.random_seed,
+        overwrite_pckl=args.overwrite_pckl,
+        use_dataset_preproc=args.use_dataset_preproc,
+        step_size=args.step_size,
+        noise_scale=args.noise_scale,
+        iterations=args.iterations,
+        num_repetitions=args.num_repetitions,
+        override_save=args.override_save,
+        model_directory=args.model_directory,
+        initial_metamer=args.intial_metamer
+    )
 
 
 if __name__ == '__main__':
