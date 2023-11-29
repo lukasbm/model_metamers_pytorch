@@ -1,5 +1,7 @@
 """
-Based on the fMRI scripts used in Kell et al. 2018 with minor changes. 
+Based on the fMRI scripts used in Kell et al. 2018 with minor changes.
+
+NOTE: Audio Only!
 """
 
 import numpy as np
@@ -176,7 +178,7 @@ def runRidgeWithCorrectedR2_ThreeRunSplit(features,
             split_r_hat, split_p_hat = scipy.stats.pearsonr(split_yhat[split[0]], split_yhat[split[1]])
         else:  # if one of the predictions is constant, then set the r^2 to zero.
             print('WARNING: VOXEL %d, Run %s is predicted as only the expected value. Setting correlation to zero.' % (
-            voxel_idx, split))
+                voxel_idx, split))
             split_r_hat = 0
         rv_hats.append(split_r_hat)
 

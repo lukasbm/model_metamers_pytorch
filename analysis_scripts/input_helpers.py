@@ -1,3 +1,7 @@
+"""
+as the code does not use typical dataloaders (for some reason, even though they are available via ds.make_loaders),
+this module contains functions to load data samples individually.
+"""
 import glob
 import pickle
 from shutil import copyfile
@@ -222,11 +226,12 @@ def generate_import_image_functions(image_func='small_16_class_imagenet',  # def
 
 def medium_256_16_class_imagenet(IMG_IDX, im_shape=224, data_format='NHWC'):
     """
-    Set consists of the 16 image net classes described in https://arxiv.org/pdf/1808.08750.pdf, and this medium dataset consists of 16 images randomly chosen from each class.
+    Set consists of the 16 image net classes described in https://arxiv.org/pdf/1808.08750.pdf,
+    and this medium dataset consists of 16 images randomly chosen from each class.
     This set was used in Feather et al. 2019 (NeurIPS). Images are from the training dataset, as in the linked paper.
     """
     image_locations = os.path.join(ASSETS_PATH, 'full_256_16_class_imagenet/')
-    mage_name = glob.glob('%s/%d_*' % (image_locations, IMG_IDX))[0].split('/')[-1]  # image_list[IMG_IDX]
+    image_name = glob.glob('%s/%d_*' % (image_locations, IMG_IDX))[0].split('/')[-1]  # image_list[IMG_IDX]
     print("Loading: %s" % image_name)
     assert int(image_name.split('_')[0]) == IMG_IDX, 'Check the ordering for the images'
     img1 = scipy.misc.imread(os.path.join(image_locations, image_name), mode='RGB')
@@ -310,9 +315,11 @@ def preproc_imagenet_center_crop(img1, im_shape=224, pil_preproc=False):
     return img1
 
 
+# NOT USED
 def make_400_16_class_imagenet_val_data():
     """
-    Gets 25 examples for each of the 16 classes, removing some images if it seemed to not fit the 16-way class (or was cropped out), hand screened by jfeather
+    Gets 25 examples for each of the 16 classes, removing some images if it seemed to not fit the 16-way class
+    (or was cropped out), hand screened by jfeather
     Set used in Feather et al. 2022.
     """
 

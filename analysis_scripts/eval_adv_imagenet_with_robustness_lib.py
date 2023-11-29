@@ -1,3 +1,8 @@
+"""
+loads a network (based on build_network.py) and evaluates it on imagenet.
+Output statistics are top1 accuracy, loss and time for one epoch.
+This only do adversarial evaluation
+"""
 import argparse
 import os
 import pickle
@@ -88,7 +93,7 @@ model, ds = build_network.main()
 ch.manual_seed(RANDOMSEED)
 np.random.seed(RANDOMSEED)
 
-# All of the models tested here had the same size.  
+# All the models tested here had the same size.
 # If running a different model this might need to be modified. 
 TEST_TRANSFORMS_IMAGENET = transforms.Compose([
     transforms.Resize(256),
@@ -113,7 +118,6 @@ for eps in eps_list:
     print('Evaluating EPS %s, NORM %s' % (eps, attack_norm))
     # Hard-coded base parameters
     eval_args = {
-        'out_dir': "eval_out",
         'exp_name': "eval_natural_imagenet",
         'adv_train': 0,
         "adv_eval": 1,

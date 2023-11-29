@@ -1,3 +1,12 @@
+"""
+This script contains functions for analyzing the optimization of metamers.
+It loads the `.pckl` file created during the metamer generation (includes the distance measurements)
+and the null distributions (created by running the null generation script).
+These are then compared to the criteria mentioned in the paper.
+1. same output class
+2. same activations (distance outside null distribution)
+"""
+
 import glob
 import os
 import pickle as pckl

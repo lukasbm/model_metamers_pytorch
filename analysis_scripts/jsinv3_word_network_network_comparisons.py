@@ -1,10 +1,13 @@
+"""
+Runs the network-network comparison for models based on jsinv3 dataset
+"""
 import argparse
 
 import sys
 
 sys.path.append(
     '/om4/group/mcdermott/user/jfeather/projects/robust_audio_networks/robustness/metamers_paper_model_analysis_folders/')
-import all_model_info
+from model_analysis_folders import all_model_info
 
 sys.path.append(
     '/om4/group/mcdermott/user/jfeather/projects/robust_audio_networks/robustness/analysis_scripts_metamers_paper')
@@ -15,7 +18,7 @@ import build_network
 NUM_WORKERS = 1
 BATCH_SIZE = 1
 
-#########PARSE THE ARGUMENTS FOR THE FUNCTION#########
+######### PARSE THE ARGUMENTS FOR THE FUNCTION #########
 parser = argparse.ArgumentParser(description='Input the name of the network for the metamers you want to evalalute')
 parser.add_argument('MET_NET', metavar='M', type=str, help='Network from which metamers were generated.')
 parser.add_argument('-F', '--FOLDER', metavar='--F', type=str, default='network_network_evaluations',

@@ -141,6 +141,7 @@ def eval_model(args, model, loader, store, adv_only=False):
     model = ch.nn.DataParallel(model)
 
     if not adv_only:
+        # run the natural evaluation
         prec1, nat_loss = _model_loop(args, 'val', loader,
                                       model, None, 0, False, writer, store)
     else:
@@ -148,10 +149,12 @@ def eval_model(args, model, loader, store, adv_only=False):
 
     adv_prec1, adv_loss = float('nan'), float('nan')
     if args.adv_eval:
+        # run the adversarial evaluation
         args.eps = eval(str(args.eps)) if has_attr(args, 'eps') else None
         args.attack_lr = eval(str(args.attack_lr)) if has_attr(args, 'attack_lr') else None
         adv_prec1, adv_loss = _model_loop(args, 'val', loader,
                                           model, None, 0, True, writer, store)
+
     log_info = {
         'epoch': 0,
         'nat_prec1': prec1,
@@ -164,7 +167,8 @@ def eval_model(args, model, loader, store, adv_only=False):
     }
 
     # Log info into the logs table
-    if store: store[consts.LOGS_TABLE].append_row(log_info)
+    if store:
+        store[consts.LOGS_TABLE].append_row(log_info)
     return log_info
 
 
@@ -441,7 +445,7 @@ def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer, store):
 
     # Check if the model has multiple losses. If it does then use a multi=task printout
     try:
-        multi_task_loss = (type(args.custom_train_loss.all_loss_weights) == dict)
+        multi_task_loss = (type(args.custom_train_loss.all_loss_weights) is dict)
         multi_task_keys = args.custom_train_loss.all_loss_weights.keys()
     except AttributeError:
         multi_task_loss = False
@@ -462,7 +466,7 @@ def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer, store):
     # switch to train/eval mode depending
     model = model.train() if is_train else model.eval()
 
-    # If adv training (or evaling), set eps and random_restarts appropriately
+    # If adv training (or evaluating), set eps and random_restarts appropriately
     if adv:
         eps = calc_fadein_eps(epoch, args.eps_fadein_epochs, args.eps) \
             if is_train else args.eps
@@ -506,13 +510,7 @@ def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer, store):
         if i % 2000 == 0:  # Save a temporary checkpoint every 2000 steps
             if is_train:
                 # Make some stuff to save temporary checkpoints during training
-                sd_info = {
-                    'model': model.state_dict(),
-                    'optimizer': opt.state_dict(),
-                    # 'schedule':(schedule and schedule.state_dict()),
-                    'epoch': epoch,
-                }
-                sd_info['iteration'] = i
+                sd_info = {'model': model.state_dict(), 'optimizer': opt.state_dict(), 'epoch': epoch, 'iteration': i}
                 save_checkpoint('checkpoint_epoch%d_iter%d.ckpt' % (epoch, i))
 
         # measure data loading time
@@ -526,7 +524,8 @@ def _model_loop(args, loop_type, loader, model, opt, epoch, adv, writer, store):
                                   **attack_kwargs)
         loss = train_criterion(output, target)
 
-        if len(loss.shape) > 0: loss = loss.mean()
+        if len(loss.shape) > 0:
+            loss = loss.mean()
 
         if isinstance(output, tuple):
             model_logits = output[0]

@@ -1,6 +1,8 @@
 """
 Measures the model activations for a set of sounds. Uses the layers specified in the 
-build_network.py script. 
+build_network.py script.
+
+NOTE: Audio only!
 
 Set up to measure activations for the set of sounds used in Norman-Haignere et al. 2015. 
 

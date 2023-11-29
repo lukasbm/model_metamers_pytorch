@@ -1,13 +1,12 @@
 """
 This file was used to get the network-network predictions by loading in the generated imagenet
-metamers. Metamers are not released on the github due to file size, but this can be used 
+metamers. Metamers are not released on the GitHub due to file size, but this can be used
 for network-network comparisons for new networks.
 """
 
 import argparse
 
 import build_network
-
 from analysis_scripts.network_network_helpers import *
 from model_analysis_folders import all_model_info
 

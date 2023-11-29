@@ -1,3 +1,6 @@
+"""
+Helper functions for feeding models into other models and checking their recognizability
+"""
 import csv
 import glob
 import pickle as pckl
@@ -18,6 +21,7 @@ with open(WORDNET_ID_TO_HUMAN_PATH, mode='r') as infile:
     wnid_imagenet_name = {rows[0]: rows[1] for rows in reader}
 
 # Get the word and speaker encodings for the label map
+# NOTE: Audio only
 word_and_speaker_encodings = pckl.load(open(WORD_AND_SPEAKER_ENCODINGS_PATH, "rb"))
 
 

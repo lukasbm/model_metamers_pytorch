@@ -2,6 +2,8 @@
 Voxel prediction analysis using fMRI data from Norman-Haignere et al. 2015
 Follows same analysis as used in Kell et al. 2018
 
+NOTE: Audio Only!
+
 Please cite the assciated papers if you use this analysis pipeline. 
 
 @article{norman2015distinct,
@@ -101,7 +103,7 @@ if not os.path.isdir(EXPORT_DIR_FULL):
 
 if zero_center:
     save_path = os.path.join(EXPORT_DIR_FULL, 'voxelwise_regression_%s_randseed%d_zero_center_fmri_activations.pckl' % (
-    layer, rand_seed))
+        layer, rand_seed))
 else:
     save_path = os.path.join(EXPORT_DIR_FULL, 'voxelwise_regression_%s_randseed%d.pckl' % (layer, rand_seed))
 ###### END OF MODEL SPECIFIC PARAMETERS ######

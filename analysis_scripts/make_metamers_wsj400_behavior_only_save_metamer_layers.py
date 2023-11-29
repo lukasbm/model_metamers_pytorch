@@ -1,11 +1,13 @@
 """
-Runs audio metamer generation on all of the layers specified in build_network.py
+Runs audio metamer generation on all the layers specified in build_network.py
 Removes additional layers from saving to reduce the file size
 
 You can either make a copy of this file into the directory with the build_network.py file
 and run it from there directly, or specify the model directory containing the build_network.py
 file as an argument (-D). The script will create a folder structure for the generated metamers
-in the directory specified, or in the directory it is called from, if no directory is specified. 
+in the directory specified, or in the directory it is called from, if no directory is specified.
+
+NOTE: audio only!
 """
 
 import argparse
@@ -107,7 +109,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
     # Set up saving and check that the file doesn't already exist (exit if it does)
     synth_name = INPUTAUDIOFUNCNAME + '_' + LOSS_FUNCTION + '_RS%d' % RANDOMSEED + '_I%d' % ITERATIONS + '_N%d' % NUMREPITER
     base_filepath = os.path.join(MODEL_DIRECTORY, 'metamers/%s/%d_SOUND_%s/' % (
-    synth_name, SIDX, ds.label_mapping[int(targ[0].cpu().numpy())]))
+        synth_name, SIDX, ds.label_mapping[int(targ[0].cpu().numpy())]))
     try:
         os.makedirs(base_filepath)
     except:
@@ -386,7 +388,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
             plt.scatter(np.ravel(np.array(all_outputs[layer_to_invert].cpu())[i, :]),
                         np.ravel(all_outputs_out[layer_to_invert].cpu().detach().numpy()[i, :]))
             plt.title('Layer %s, Word %d, Label "%s" \n Optimization' % (
-            layer_to_invert, i, ds.label_mapping[int(targ[i].cpu().numpy())]))
+                layer_to_invert, i, ds.label_mapping[int(targ[i].cpu().numpy())]))
             plt.xlabel('Orig Activations (%s)' % layer_to_invert)
             plt.ylabel('Synth Activations (%s)' % layer_to_invert)
 
@@ -403,7 +405,7 @@ def run_audio_metamer_generation(SIDX, LOSS_FUNCTION, INPUTAUDIOFUNCNAME, RANDOM
                 plt.scatter(np.ravel(np.array(all_outputs['final'].cpu())[i, :]),
                             np.ravel(all_outputs_out['final'].cpu().detach().numpy()[i, :]))
             plt.title('Layer %s, Word %d, Label "%s" \n Optimization' % (
-            layer_to_invert, i, ds.label_mapping[int(targ[i].cpu().numpy())]))
+                layer_to_invert, i, ds.label_mapping[int(targ[i].cpu().numpy())]))
             plt.xlabel('Orig Activations (Final Layer)')
             plt.ylabel('Synth Activations (Final Layer)')
 

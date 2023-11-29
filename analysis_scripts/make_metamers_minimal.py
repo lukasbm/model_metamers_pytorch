@@ -1,3 +1,9 @@
+"""
+this is a non-functional copy of make_metamers_imagenet_16_category_val_400_only_save_metamer_layers.py intended
+for easier studying of the code.
+
+NOTE: vision only
+"""
 import argparse
 import importlib.util
 import os
