@@ -22,6 +22,7 @@ matplotlib
 seaborn
 scikit-learn
 numba
+scipy
 
 # nvidia
 nvidia-ml-py3
@@ -39,6 +40,8 @@ safetensors  # required by timm, but not a explicit dependency
 tensorboard
 torch-tb-profiler
 wandb
+cox
+dill
 
 # notebooks
 import-ipynb
