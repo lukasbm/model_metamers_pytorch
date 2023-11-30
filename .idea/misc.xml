@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Poetry (model_metamers_pytorch)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="model_metamers_pytorch" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="feathers_model_metamers" project-jdk-type="Python SDK" />
 </project>
