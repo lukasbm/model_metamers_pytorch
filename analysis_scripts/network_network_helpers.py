@@ -159,6 +159,10 @@ def get_network_predictions_from_metamer_list_audio(model, metamer_list,
 
 
 def evaluate_predicted_vs_actual(labels, predictions):
+    """
+    Takes the labels and predictions and returns the correct-incorrect predictions
+    Apparently the most important function for network-network comparison
+    """
     correct_incorrect = {}
     average_correct = {}
     for layer in labels.keys():

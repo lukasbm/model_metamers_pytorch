@@ -54,7 +54,7 @@ def calc_loss(model, inp, target, custom_loss, should_preproc=True):
 def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name, seed, overwrite_pckl,
                                  use_dataset_preproc, step_size, noise_scale, iterations, num_repetitions,
                                  override_save, model_directory,
-                                 initial_metamer: Literal["noise", "reference", "uniform"] = "noise",
+                                 initial_metamer: Literal["noise", "reference", "uniform", "constant"] = "noise",
                                  output_name: Optional[str] = None):
     if model_directory is None:
         import build_network
@@ -187,11 +187,17 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
             pass
 
         # set up initial metamer
-        if initial_metamer:
+        if initial_metamer == "reference":
             metamer = reference_image.clone().cuda()
-        else:
+        elif initial_metamer == "noise":
             # Use same noise for every layer.
             metamer = torch.clamp(torch.from_numpy(initial_noise), ds.min_value, ds.max_value).cuda()
+        elif initial_metamer == "uniform":
+            metamer = torch.distributions.Uniform(0, 1).sample(reference_image.shape).cuda()
+        elif initial_metamer == "constant":
+            metamer = torch.ones_like(reference_image) * 0.5
+        else:
+            raise ValueError("invalid initial metamer param")
 
         inverted_reference_representation = reference_activations[layer_to_invert].contiguous().view(
             reference_activations[layer_to_invert].size(0), -1)
@@ -547,8 +553,7 @@ class MetamerGeneratorArgs:
     use_dataset_preproc: bool = False  # preprocess the dataset (by default just something like tv.ToTensor)
     noise_scale: float = 1 / 20  # multiply the noise by this value for the synthesis initialization (noise init)
     step_size: float = 1.0  # Initial step size for the metamer generation
-    intial_metamer: Literal[
-        "noise", "reference", "uniform"] = "noise"  # start from the reference image (True) or from noise (False)
+    intial_metamer: Literal["noise", "reference", "uniform", "constant"] = "noise"  # initial metamer value
 
 
 def main():

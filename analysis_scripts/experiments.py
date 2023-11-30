@@ -1,7 +1,6 @@
 from functools import partial
 
 from make_metamers_imagenet_16_category_val_400_only_save_metamer_layers import run_image_metamer_generation
-from make_null_distributions import run_null_distribution
 
 model_name = "alexnet"
 default_generation = partial(run_image_metamer_generation,
@@ -36,7 +35,9 @@ default_generation = partial(run_image_metamer_generation,
 # , use_saved_distances=True, save_metamer_distances=True, )
 
 # experiment
-for (iterations, repetitions) in [(100, 10), (100, 100), (1000, 1), (1000, 10), (10000, 1)]:
+steps = [(100, 10), (100, 100), (1000, 1), (1000, 10), (10000, 1)]
+steps = [(100, 10)]  # FIXME: remove (only for testing)
+for (iterations, repetitions) in steps:
     print(f"TEST: running initial metamer test (NOISE) with iterations={iterations} and repetitions={repetitions}")
     default_generation(iterations=iterations, num_repetitions=repetitions, initial_metamer="noise",
                        output_name=f"initial_metamer_test_noise_iterations_{iterations}_repetitions_{repetitions}/")
