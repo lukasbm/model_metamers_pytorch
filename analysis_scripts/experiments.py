@@ -38,14 +38,18 @@ default_generation = partial(run_image_metamer_generation,
 steps = [(100, 10), (100, 100), (1000, 1), (1000, 10), (10000, 1)]
 steps = [(100, 10)]  # FIXME: remove (only for testing)
 for (iterations, repetitions) in steps:
-    print(f"TEST: running initial metamer test (NOISE) with iterations={iterations} and repetitions={repetitions}")
-    default_generation(iterations=iterations, num_repetitions=repetitions, initial_metamer="noise",
-                       output_name=f"initial_metamer_test_noise_iterations_{iterations}_repetitions_{repetitions}/")
+    # print(f"TEST: running initial metamer test (NOISE) with iterations={iterations} and repetitions={repetitions}")
+    # default_generation(iterations=iterations, num_repetitions=repetitions, initial_metamer="noise",
+    #                    output_name=f"initial_metamer_test_noise_iterations_{iterations}_repetitions_{repetitions}/")
+    #
+    # print(f"TEST: running initial metamer test (REFERENCE) with iterations={iterations} and repetitions={repetitions}")
+    # default_generation(iterations=iterations, num_repetitions=repetitions, initial_metamer="reference",
+    #                    output_name=f"initial_metamer_test_reference_iterations_{iterations}_repetitions_{repetitions}/")
+    #
+    # print(f"TEST: running initial metamer test (UNIFORM) with iterations={iterations} and repetitions={repetitions}")
+    # default_generation(iterations=iterations, num_repetitions=repetitions, initial_metamer="uniform",
+    #                    output_name=f"initial_metamer_test_uniform_iterations_{iterations}_repetitions_{repetitions}/")
 
-    print(f"TEST: running initial metamer test (REFERENCE) with iterations={iterations} and repetitions={repetitions}")
-    default_generation(iterations=iterations, num_repetitions=repetitions, initial_metamer="reference",
-                       output_name=f"initial_metamer_test_reference_iterations_{iterations}_repetitions_{repetitions}/")
-
-    print(f"TEST: running initial metamer test (UNIFORM) with iterations={iterations} and repetitions={repetitions}")
-    default_generation(iterations=iterations, num_repetitions=repetitions, initial_metamer="uniform",
-                       output_name=f"initial_metamer_test_uniform_iterations_{iterations}_repetitions_{repetitions}/")
+    print(f"TEST: running initial metamer test (CONSTANT) with iterations={iterations} and repetitions={repetitions}")
+    default_generation(iterations=iterations, num_repetitions=repetitions, initial_metamer="constant",
+                       output_name=f"initial_metamer_test_constant_iterations_{iterations}_repetitions_{repetitions}/")

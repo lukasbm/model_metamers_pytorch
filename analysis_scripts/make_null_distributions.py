@@ -25,7 +25,7 @@ def _get_activations(all_outputs, metamer_layers):
             activations_2.append(np.concatenate(
                 [out_value[1, :].detach().cpu().numpy().ravel().astype(np.float32) for out_value in all_outputs[layer]],
                 0))
-        else:
+        else:  # split up the pair of images (should go here mostly)
             activations_1.append(all_outputs[layer][0, :].detach().cpu().numpy().ravel().astype(np.float32))
             activations_2.append(all_outputs[layer][1, :].detach().cpu().numpy().ravel().astype(np.float32))
     return activations_1, activations_2
@@ -86,8 +86,8 @@ def run_null_distribution(NUMNULL, SPLITIDX, PATHNULL, RANDOMSEED, OVERWRITE_PIC
     norm_noise = []
     norm_signal = []
 
-    for null_iter in range(NUMNULL):
-        _, (im, targ) = next(data_iterator)  # Images to invert
+    for null_iter in range(NUMNULL):  # 1_000_000
+        _, (im, targ) = next(data_iterator)  # Batch of images (2) to invert
         with torch.no_grad():
             (predictions, rep, all_outputs), orig_image = model(im.cuda(), with_latent=True,
                                                                 fake_relu=True)  # Corresponding representation
