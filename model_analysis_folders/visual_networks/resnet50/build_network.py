@@ -9,19 +9,19 @@ def build_net(ds_kwargs={}, return_metamer_layers=False):
 
     # Resnet50 Layers Used for Metamer Generation
     metamer_layers = [
-        'input_after_preproc',
-        'conv1_relu1',
-        'conv1_relu1_fake_relu',
+        # 'input_after_preproc',
+        # 'conv1_relu1',
+        # 'conv1_relu1_fake_relu',
         'layer1',
-        'layer1_fake_relu',
+        # 'layer1_fake_relu',
         'layer2',
-        'layer2_fake_relu',
-        'layer3',
-        'layer3_fake_relu',
-        'layer4',
-        'layer4_fake_relu',
-        'avgpool',
-        'final'
+        # 'layer2_fake_relu',
+        # 'layer3',
+        # 'layer3_fake_relu',
+        # 'layer4',
+        # 'layer4_fake_relu',
+        # 'avgpool',
+        # 'final'
     ]
 
     ds = datasets.ImageNet(IMAGENET_PATH, **ds_kwargs)

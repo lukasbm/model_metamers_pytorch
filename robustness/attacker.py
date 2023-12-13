@@ -219,6 +219,7 @@ class Attacker(ch.nn.Module):
                     args = [losses, best_loss, x, best_x]
                     best_loss, best_x = replace_best(*args) if use_best else (losses, x)
 
+                    # update the metamer
                     x = step.step(x, grad)
                     x = step.project(x)
                     if do_tqdm:
@@ -229,6 +230,7 @@ class Attacker(ch.nn.Module):
                 ret = x.clone().detach()
                 return step.to_image(ret) if return_image else ret
 
+            # final calculation
             losses, _ = calc_loss(step.to_image(x), target)
             args = [losses, best_loss, x, best_x]
             best_loss, best_x = replace_best(*args)
