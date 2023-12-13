@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="VisualMetamersGenerationFromReference" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="VisualMetamersGenerationFromNoise (ResNet50)" type="PythonConfigurationType" factoryName="Python">
     <module name="model_metamers_pytorch" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
@@ -14,7 +14,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="analysis_scripts.make_metamers_imagenet_16_category_val_400_only_save_metamer_layers" />
-    <option name="PARAMETERS" value="--sidx 1 --model_directory model_analysis_folders/visual_networks/alexnet --random_seed 5 --iterations 200 --num_repetitions 5 --start_from_reference_image true --overwrite_pckl true --override_save true" />
+    <option name="PARAMETERS" value="--sidx 1 --model_directory model_analysis_folders/visual_networks/resnet50 --random_seed 5 --iterations 3000 --num_repetitions 5 --overwrite_pckl true --override_save true" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="true" />
