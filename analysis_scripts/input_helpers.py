@@ -271,12 +271,13 @@ def medium_400_16_class_imagenet_val_images(IMG_IDX, im_shape=224, data_format='
     img_pil = Image.open(os.path.join(image_locations, image_name))
     width, height = img_pil.size
 
-    # center crop the image?
+    # do a square crop
     smallest_dim = min((width, height))
     left = (width - smallest_dim) // 2
     right = (width + smallest_dim) // 2
     top = (height - smallest_dim) // 2
     bottom = (height + smallest_dim) // 2
+
     img_pil = img_pil.crop((left, top, right, bottom))
     img_pil = img_pil.resize((im_shape, im_shape))
     img_pil.load()

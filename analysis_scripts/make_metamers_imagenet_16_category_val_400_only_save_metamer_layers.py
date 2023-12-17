@@ -33,21 +33,21 @@ from robustness.tools.distance_measures import *
 from robustness.tools.label_maps import CLASS_DICT
 
 
-def preproc_image(image, image_dict):
+def rescale_image(image, image_dict):
     """The image into the pytorch model should be between 0-1"""
     if image_dict['max_value_image_set'] == 255:
         image = image / 255.
     return image
 
 
-def calc_loss(model, inp, target, custom_loss, should_preproc=True):
+def calc_loss(model: robustness.attacker.AttackerModel, inp, target, custom_loss, should_preproc=True):
     """
     Modified from the Attacker module of Robustness. 
     Calculates the loss of an input with respect to target labels
     Uses custom loss (if provided) otherwise the criterion
     """
     if should_preproc:
-        inp = model.preproc(inp)
+        inp = model.preproc(inp)  # AttackerModel.preproc
     return custom_loss(model.model, inp, target)
 
 
@@ -95,7 +95,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     image_dict = INPUTIMAGEFUNC(image_id)  # load the image from the reduced dataset (400 images, see /assets)
     image_dict['image_orig'] = image_dict['image']
     # Preprocess to be in the format for pytorch
-    image_dict['image'] = preproc_image(image_dict['image'], image_dict)  # essentially a ToTensor transform
+    image_dict['image'] = rescale_image(image_dict['image'], image_dict)  # essentially a ToTensor transform
     if use_dataset_preproc:  # Apply for some models, for instance if we have greyscale images or different sizes.
         # essentially turn it back into a PIL image and apply the dataset transforms
         image_dict['image'] = ds.transform_test(Image.fromarray(np.rollaxis(np.uint8(image_dict['image'] * 255), 0, 3)))

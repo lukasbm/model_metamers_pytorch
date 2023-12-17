@@ -162,10 +162,12 @@ class Attacker(ch.nn.Module):
             """
             if should_preproc:
                 inp = self.preproc(inp)
-            output = self.model(inp)
+
             if custom_loss:
                 return custom_loss(self.model, inp, target)
-            return criterion(output, target), output
+            else:
+                output = self.model(inp)
+                return criterion(output, target), output
 
         # Main function for making adversarial examples using PGD
         def get_adv_examples(x):
@@ -330,7 +332,7 @@ class AttackerModel(ch.nn.Module):
                 (even if :samp:`make_adv == True`).
         """
         # Useful for running part of the model first, before generating the 
-        # adverarial examples for the rest of the model
+        # adversarial examples for the rest of the model
         if helpers.has_attr(self, 'audio_rep_transform'):
             inp, _ = self.audio_rep_transform(inp, None)
         if helpers.has_attr(self, 'vone_transform'):
@@ -356,4 +358,4 @@ class AttackerModel(ch.nn.Module):
         else:
             output = None
 
-        return (output, inp)
+        return output, inp
