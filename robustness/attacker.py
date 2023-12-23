@@ -78,12 +78,26 @@ class Attacker(ch.nn.Module):
         self.dataset_min_value = dataset.min_value
         self.dataset_max_value = dataset.max_value
 
-    def forward(self, x, target, *_,
-                constraint: Union[Literal["inf", "2", "unconstrained", "inf_corner", "l2_enforcenorm"], AttackerStep],
-                eps, step_size, iterations,
-                random_start=False, random_restarts=False, do_tqdm=False,
-                targeted=False, custom_loss=None, should_preproc=True,
-                orig_input=None, use_best=True, return_image=True, est_grad=None):
+    def forward(
+            self,
+            x,
+            target,
+            *_,
+            constraint: Union[Literal["inf", "2", "unconstrained", "inf_corner", "l2_enforcenorm"], AttackerStep],
+            eps,
+            step_size,
+            iterations,
+            random_start=False,
+            random_restarts=False,
+            do_tqdm=False,
+            targeted=False,
+            custom_loss=None,
+            should_preproc=True,
+            orig_input=None,
+            use_best=True,
+            return_image=True,
+            est_grad=None
+    ):
         """
         Implementation of forward (finds adversarial examples). Note that
         this does **not** perform inference and should not be called
@@ -198,15 +212,17 @@ class Attacker(ch.nn.Module):
 
                 return bloss, bx
 
-            # PGD iterates
+            # PGD iterates (we will optimize x)
             for _ in iterator:
                 x = x.clone().detach().requires_grad_(True)
+
+                # calculating the loss also does the forward pass.
                 losses, _ = calc_loss(step.to_image(x), target)
-                assert losses.shape[0] == x.shape[0], \
-                    'Shape of losses must match input!'
+                assert losses.shape[0] == x.shape[0], 'Shape of losses must match input!'
 
                 loss = ch.mean(losses)
 
+                # calculate gradient
                 if step.use_grad:
                     if est_grad is None:
                         # invert loss if targeted

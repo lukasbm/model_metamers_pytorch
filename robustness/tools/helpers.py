@@ -18,6 +18,9 @@ def has_attr(obj, k):
 
 
 def calc_est_grad(func, x, y, rad, num_samples):
+    """
+    func: function that takes in x and y and returns an unreduced loss
+    """
     B, *_ = x.shape
     Q = num_samples // 2
     N = len(x.shape) - 1
