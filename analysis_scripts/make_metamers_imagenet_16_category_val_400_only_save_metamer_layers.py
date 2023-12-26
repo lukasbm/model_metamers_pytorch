@@ -52,7 +52,7 @@ def calc_loss(model: robustness.attacker.AttackerModel, inp, target, custom_loss
 
 
 def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name, seed, overwrite_pckl,
-                                 use_dataset_preproc, step_size, noise_scale, iterations, num_repetitions,
+                                 use_dataset_preproc, initial_step_size, noise_scale, iterations, num_repetitions,
                                  override_save, model_directory,
                                  initial_metamer: Literal["noise", "reference", "uniform", "constant"] = "noise",
                                  output_name: Optional[str] = None):
@@ -121,14 +121,11 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     # Set up the saving folder and make sure that the file doesn't already exist
     synth_name = input_image_func_name + '_' + loss_func_name + '_RS%d' % seed + '_I%d' % iterations + '_N%d' % num_repetitions
     if output_name is None:
-        base_filepath = os.path.join(model_directory, 'metamers/%s/%d_SOUND_%s/' % (synth_name, image_id, label_name))
+        base_filepath = os.path.join(model_directory, "metamers", synth_name, f"%{image_id}_SOUND_{label_name}") + "/"
     else:
         base_filepath = os.path.join(model_directory, "metamers", output_name) + "/"
     pckl_path = base_filepath + '/all_metamers_pickle.pckl'
-    try:
-        os.makedirs(base_filepath)
-    except:
-        pass
+    os.makedirs(base_filepath, exist_ok=True)
 
     if os.path.isfile(pckl_path) and not overwrite_pckl:
         raise FileExistsError('The file %s already exists, and you are not forcing overwriting' % pckl_path)
@@ -166,7 +163,8 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
             'custom_loss': custom_synthesis_losses.LOSSES[loss_func_name](layer_to_invert, normalize_loss=True),
             'constraint': '2',  # norm constraint. L2, L_inf, etc.
             'eps': 100000,  # why this high? this is weird, usually 8/255 or some is used
-            'step_size': step_size,  # essentially works like learning rate. halved every 3000 iterations (default: 1.0)
+            'step_size': initial_step_size,
+            # essentially works like learning rate. halved every 3000 iterations (default: 1.0)
             'iterations': iterations,  # iterations to generate one adv example
             'do_tqdm': False,
             'targeted': True,
@@ -345,7 +343,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     pckl_output_dict['ITERATIONS'] = iterations
     pckl_output_dict['NUMREPITER'] = num_repetitions
     pckl_output_dict['NOISE_SCALE'] = noise_scale
-    pckl_output_dict['step_size'] = step_size
+    pckl_output_dict['step_size'] = initial_step_size
 
     # clean up and save reference activations for later evaluation
     for key in reference_activations:
@@ -567,7 +565,7 @@ def main():
         seed=args.random_seed,
         overwrite_pckl=args.overwrite_pckl,
         use_dataset_preproc=args.use_dataset_preproc,
-        step_size=args.step_size,
+        initial_step_size=args.step_size,
         noise_scale=args.noise_scale,
         iterations=args.iterations,
         num_repetitions=args.num_repetitions,

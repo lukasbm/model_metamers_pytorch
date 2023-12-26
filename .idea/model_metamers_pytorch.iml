@@ -7,6 +7,8 @@
       <sourceFolder url="file://$MODULE_DIR$/matlab_statistics_functions" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/model_analysis_folders" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/notebooks" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/robustness" isTestSource="false" />
     </content>
     <orderEntry type="jdk" jdkName="feathers_model_metamers" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
