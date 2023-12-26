@@ -26,6 +26,7 @@ torch.backends.cudnn.benchmark = True
 
 BUILD_FILE_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 
+
 def imagenet2_labelmap(classes, class_to_idx):
     class_to_idx = {'%s' % i: i for i in range(1000)}
     classes = ['%s' % i for i in range(1000)]
@@ -44,13 +45,13 @@ class CLIPModelWithLabels(torch.nn.Module):
         self.clip_model = clip_model
         self.input_resolution = clip_model.visual.input_resolution
         self.vision_embedding = clip_model.visual
-        self.model_device=device
+        self.model_device = device
         if os.path.exists(os.path.join(BUILD_FILE_DIRECTORY, 'zeroshot_weights.pt')):
             zeroshot_weights = torch.load(os.path.join(BUILD_FILE_DIRECTORY, 'zeroshot_weights.pt'))
         else:
             zeroshot_weights = self.zeroshot_classifier(self.clip_model,
-                                                             imagenet_classes,
-                                                             imagenet_templates)
+                                                        imagenet_classes,
+                                                        imagenet_templates)
             torch.save(zeroshot_weights, os.path.join(BUILD_FILE_DIRECTORY, 'zeroshot_weights.pt'))
         self.register_buffer('zeroshot_weights', zeroshot_weights)
 
@@ -58,9 +59,9 @@ class CLIPModelWithLabels(torch.nn.Module):
         with torch.no_grad():
             zeroshot_weights = []
             for classname in tqdm(classnames):
-                texts = [template.format(classname) for template in templates] #format with class
-                texts = clip.tokenize(texts).to(self.model_device)# cuda() #tokenize
-                class_embeddings = model.encode_text(texts) #embed with text encoder
+                texts = [template.format(classname) for template in templates]  # format with class
+                texts = clip.tokenize(texts).to(self.model_device)  # cuda() #tokenize
+                class_embeddings = model.encode_text(texts)  # embed with text encoder
                 class_embeddings /= class_embeddings.norm(dim=-1, keepdim=True)
                 class_embedding = class_embeddings.mean(dim=0)
                 class_embedding /= class_embedding.norm()

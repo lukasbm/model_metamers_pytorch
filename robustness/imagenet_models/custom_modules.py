@@ -111,6 +111,7 @@ class SequentialWithArgs(torch.nn.Sequential):
                 input = vs[i](input)
         return input
 
+
 class SequentialWithAllOutput(torch.nn.Sequential):
     def forward(self, input, *args, **kwargs):
         vs = list(self._modules.values())
@@ -119,7 +120,7 @@ class SequentialWithAllOutput(torch.nn.Sequential):
             for i in range(l):
                 if i == 0:
                     input, _, all_outputs = vs[i](input, *args, **kwargs)
-                elif i == l-1:
+                elif i == l - 1:
                     input, pre_out, all_outputs_new = vs[i](input, *args, **kwargs)
                     all_outputs = self._append_all_outputs(all_outputs, all_outputs_new)
                 else:
@@ -138,4 +139,3 @@ class SequentialWithAllOutput(torch.nn.Sequential):
                                  'all_outputs that are the same')
             all_outputs[key] = all_outputs_new[key]
         return all_outputs
-

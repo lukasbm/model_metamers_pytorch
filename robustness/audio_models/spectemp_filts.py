@@ -727,7 +727,7 @@ def make_Hts_filterbank(N_F, N_T, sr_Hz, sr_erb, temp_mod_rates=[0, 0.5, 1, 2, 4
 
     # If we have filters with 0 Hz, only make them for one value of fc_sign. 
     num_filters = len(temp_mod_rates) * len(spec_mod_rates) + (
-                sum(np.array(temp_mod_rates) != 0) * sum(np.array(spec_mod_rates) != 0))
+            sum(np.array(temp_mod_rates) != 0) * sum(np.array(spec_mod_rates) != 0))
     all_Hts = np.zeros([num_filters, N_F_fill, N_T_fill], dtype=np.complex)
     spec_temp_freqs = np.zeros([num_filters, 2])
     hts_idx = 0

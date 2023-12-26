@@ -27,7 +27,7 @@ def load_audio_wav_resample(audio_path, DUR_SECS=2, resample_SR=16000, START_SEC
     if DUR_SECS != 'full':
         if (len(audio)) / SR < DUR_SECS:
             print("PROBLEM WITH LOAD AUDIO WAV: The sound is only %d second while you requested %d seconds long" % (
-            int((len(audio)) / SR), DUR_SECS))
+                int((len(audio)) / SR), DUR_SECS))
             return
     if return_mono:
         if audio.ndim > 1:

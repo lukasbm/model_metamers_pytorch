@@ -9,6 +9,7 @@ from torch import nn
 import sys
 from robustness.imagenet_models.custom_modules import SequentialWithArgs, FakeReLU
 
+
 class Bottleneck(nn.Module):
     expansion = 4
 
@@ -141,7 +142,7 @@ class ModifiedResNet(nn.Module):
 
         self._inplanes = planes * Bottleneck.expansion
         for b_idx in range(1, blocks):
-            if b_idx==(blocks-1):
+            if b_idx == (blocks - 1):
                 layers.append(Bottleneck(self._inplanes, planes, last_block=True))
             else:
                 layers.append(Bottleneck(self._inplanes, planes))
@@ -242,13 +243,13 @@ class Transformer(nn.Module):
         self.layers = layers
         self.resblocks = nn.Sequential(*[ResidualAttentionBlock(width, heads, attn_mask) for _ in range(layers)])
 
-    def forward(self, x: torch.Tensor, 
+    def forward(self, x: torch.Tensor,
                 with_latent=False, all_outputs={}):
         if with_latent:
             for layer_idx, layer_func in enumerate(self.resblocks):
                 x = layer_func(x)
                 if with_latent:
-                    all_outputs['block_%d'%layer_idx] = x.permute(1, 0, 2) # Neeed to permute this...
+                    all_outputs['block_%d' % layer_idx] = x.permute(1, 0, 2)  # Neeed to permute this...
             return x, None, all_outputs
         else:
             return self.resblocks(x)
@@ -280,7 +281,9 @@ class VisionTransformer(nn.Module):
             all_outputs['conv1'] = x
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
-        x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
+        x = torch.cat(
+            [self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device),
+             x], dim=1)  # shape = [*, grid ** 2 + 1, width]
         if with_latent:
             all_outputs['class_embedding_cat'] = x
         x = x + self.positional_embedding.to(x.dtype)
@@ -308,7 +311,7 @@ class VisionTransformer(nn.Module):
             x = x @ self.proj
 
         if with_latent:
-#             all_outputs['final'] = x 
+            #             all_outputs['final'] = x
             return x, None, all_outputs
         return x
 
@@ -473,12 +476,14 @@ def build_model(state_dict: dict):
     vit = "visual.proj" in state_dict
     if vit:
         vision_width = state_dict["visual.conv1.weight"].shape[0]
-        vision_layers = len([k for k in state_dict.keys() if k.startswith("visual.") and k.endswith(".attn.in_proj_weight")])
+        vision_layers = len(
+            [k for k in state_dict.keys() if k.startswith("visual.") and k.endswith(".attn.in_proj_weight")])
         vision_patch_size = state_dict["visual.conv1.weight"].shape[-1]
         grid_size = round((state_dict["visual.positional_embedding"].shape[0] - 1) ** 0.5)
         image_resolution = vision_patch_size * grid_size
     else:
-        counts: list = [len(set(k.split(".")[2] for k in state_dict if k.startswith(f"visual.layer{b}"))) for b in [1, 2, 3, 4]]
+        counts: list = [len(set(k.split(".")[2] for k in state_dict if k.startswith(f"visual.layer{b}"))) for b in
+                        [1, 2, 3, 4]]
         vision_layers = tuple(counts)
         vision_width = state_dict["visual.layer1.0.conv1.weight"].shape[0]
         output_width = round((state_dict["visual.attnpool.positional_embedding"].shape[0] - 1) ** 0.5)

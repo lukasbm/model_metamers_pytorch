@@ -149,7 +149,7 @@ class InversionLossLayerWithCoarseDefineSpecTemp111(torch.nn.Module):
             # Select a subset of the units for some of the layers
             all_freqs = model.filter_freqs
             include_filts = (abs(all_freqs[:, 0]) <= self.filter_cutoffs[self.cutoff_idx][0]) + (
-                        abs(all_freqs[:, 1]) <= self.filter_cutoffs[self.cutoff_idx][1])
+                    abs(all_freqs[:, 1]) <= self.filter_cutoffs[self.cutoff_idx][1])
 
             targ = targ[:, include_filts, :, :]
             rep = rep[:, include_filts, :, :]
