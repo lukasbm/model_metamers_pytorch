@@ -55,7 +55,13 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
                                  use_dataset_preproc, initial_step_size, noise_scale, iterations, num_repetitions,
                                  override_save, model_directory,
                                  initial_metamer: Literal["noise", "reference", "uniform", "constant"] = "noise",
-                                 output_name: Optional[str] = None):
+                                 output_name: Optional[str] = None, fake_relu: bool = True):
+    """
+    @param fake_relu: disable the usage of fake relu.
+        This would otherwise use simplified gradients to improve optimization.
+        NOTE: remember to exclude fake_relu layers from the models metamer_layers in the respective build_network.py
+    """
+
     if model_directory is None:
         import build_network
         model_directory = ''  # use an empty string to append to saved files.
@@ -136,7 +142,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
 
     with torch.no_grad():
         (reference_output, reference_representation, reference_activations), reference_image = model(
-            reference_image.cuda(), with_latent=True, fake_relu=True)
+            reference_image.cuda(), with_latent=True, fake_relu=fake_relu)
 
     # Calculate human-readable labels and 16 category labels for the original image
     reference_predictions = []
@@ -224,7 +230,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
             make_adv=True,
             **synth_kwargs,
             with_latent=True,
-            fake_relu=True
+            fake_relu=fake_relu
         )
 
         # FIXME: why is the adversarial example inferenced again in the loss?
@@ -261,7 +267,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
                 make_adv=True,
                 **synth_kwargs,
                 with_latent=True,
-                fake_relu=True
+                fake_relu=fake_relu,
             )  # Image inversion using PGD
             this_loss, _ = calc_loss(model, adv_ex, inverted_reference_representation.clone(),
                                      synth_kwargs['custom_loss'])
