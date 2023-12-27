@@ -322,13 +322,27 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
         predicted_labels_out_dict[layer_to_invert] = synth_predictions
         predicted_16_cat_labels_out_dict[layer_to_invert] = synth_16_cat_prediction
 
-    print("iteration complete, start evaluation")
+    ###############################
+    # COMPUTATION DONE ############
+    ###############################
+    # we have (for each layer):
+    # rep_out_dict: prediction representations for each layer <-- will usually be none (see alexnet.py forward)
+    # predictions_out_dict: prediction outputs for each layer <--- will be the logits
+    # all_outputs_out_dict: prediction activations for each layer <-- will be the activations (featre extraction)
+    # xadv_dict: the adversarial example for each layer <-- the metamer for each layer
+    # all_losses_dict: the losses for each layer <-- list of losses (after each iteration steps)
+    # predicted_labels_out_dict: the predicted labels for each layer <-- will be the logits
+    # predicted_16_cat_labels_out_dict: the predicted 16 category labels for each layer <-- will be the 16class name
+    # reference_16_cat_prediction: the original 16 category label <-- will be the 16class name
+    # reference_predictions: the original predictions <-- will be the logits
+
+    print("iteration/computation complete, start evaluation")
 
     # add params and outputs to pckl
     pckl_output_dict = {}
     # outputs
     pckl_output_dict['xadv_dict'] = xadv_dict
-    pckl_output_dict['all_losses'] = all_losses
+    pckl_output_dict['all_losses'] = all_losses  # last_loss
     pckl_output_dict['all_outputs_out_dict'] = all_outputs_out_dict
     pckl_output_dict['predicted_labels_out_dict'] = predicted_labels_out_dict
     pckl_output_dict['predicted_16_cat_labels_out_dict'] = predicted_16_cat_labels_out_dict
@@ -408,9 +422,18 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     with open(pckl_path, 'wb') as handle:
         pickle.dump(pckl_output_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    # Make plots and save the image files
+    ###############################
+    # RESULT COLLECTION DONE ######
+    ###############################
+    print("result collection done", list(pckl_output_dict.keys()))
+    print("Start making plots ...")
+
+    # Make plots for each layer and save the image files
     for layer_idx, layer_to_invert in enumerate(metamer_layers):
-        layer_filepath = base_filepath + '%d_layer_%s' % (layer_idx, layer_to_invert)
+        layer_filepath = base_filepath + f"{layer_idx}_layer_{layer_to_invert}"
+
+        # collect all relevant variables
+
         prediction_representation = rep_out_dict[layer_to_invert]
         prediction_output = predictions_out_dict[layer_to_invert]
         adv_ex = xadv_dict[layer_to_invert]
@@ -437,13 +460,16 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
                 layer_to_invert, i, synth_16_cat_prediction))
 
             # Set synthesis success based on the 16 category labels -- we can later evaluate the 1000 category labels.
-            # FIXME: does the 1000 class evaluation happen?
+            # FIXME: does the 1000 class evaluation happen? NO!
             synth_success = reference_16_cat_prediction == synth_16_cat_prediction
 
             orig_label = np.argmax(reference_predictions)
             synth_label = np.argmax(synth_predictions)
 
-            plt.subplot(4, BATCH_SIZE, i + 1)
+            # results collected, start plotting!
+
+            # plot original image
+            plt.subplot(4, BATCH_SIZE, i + 1)  # nrows, ncols, index
             if reference_image[i].shape[0] == 3:
                 plt.imshow((np.rollaxis(np.array(reference_image[i].cpu().numpy()), 0, 3)), interpolation='none')
             elif reference_image[i].shape[0] == 1:
@@ -454,7 +480,8 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
                 layer_to_invert, i,  # CLASS_DICT['ImageNet'][int(targ[i].cpu().numpy())]))
                 CLASS_DICT['ImageNet'][int(orig_label)]))
 
-            plt.subplot(4, BATCH_SIZE, BATCH_SIZE + i + 1)
+            # plot adversarial example
+            plt.subplot(4, BATCH_SIZE, BATCH_SIZE + i + 1)  # nrows, ncols, index
             if reference_image[i].shape[0] == 3:
                 plt.imshow((np.rollaxis(np.array(adv_ex[i].cpu().numpy()), 0, 3)), interpolation='none')
             elif reference_image[i].shape[0] == 1:
@@ -465,27 +492,30 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
                 layer_to_invert, i,  # CLASS_DICT['ImageNet'][int(targ[i].cpu().numpy())]))
                 CLASS_DICT['ImageNet'][int(synth_label)]))
 
-            # plot for current layer
-            plt.subplot(4, BATCH_SIZE, BATCH_SIZE * 2 + i + 1)
-            plt.scatter(np.ravel(np.array(reference_activations[layer_to_invert].cpu())[i, :]),
-                        np.ravel(prediction_activations[layer_to_invert].cpu().detach().numpy()[i, :]))
+            # scatter plot for current layer (current orig vs current synth)
+            plt.subplot(4, BATCH_SIZE, BATCH_SIZE * 2 + i + 1)  # nrows, ncols, index
+            plt.scatter(
+                np.ravel(np.array(reference_activations[layer_to_invert].cpu())[i, :]),
+                np.ravel(prediction_activations[layer_to_invert].cpu().detach().numpy()[i, :])
+            )
             plt.title('Layer %s, Image %d, Label "%s" \n Optimization' % (
                 layer_to_invert, i, CLASS_DICT['ImageNet'][int(targ[i].cpu().numpy())]))
             plt.xlabel('Orig Activations (%s)' % layer_to_invert)
             plt.ylabel('Synth Activations (%s)' % layer_to_invert)
 
-            # plot for final layer
+            # scatter plot for final layer (final orig vs. final synth)
             plt.subplot(4, BATCH_SIZE, BATCH_SIZE * 3 + i + 1)
             if type(reference_activations['final']) is dict:
-                dict_keys = list(reference_activations['final'].keys())  # So we ensure the same order
+                dict_keys = list(reference_activations['final'].keys())  # Layers, So we ensure the same order
                 plot_outputs_final = np.concatenate(
-                    [np.array(reference_activations['final'][task_key].cpu()[i, :]).ravel() for task_key in dict_keys])
-                plot_outputs_out_final = np.concatenate(
-                    [np.array(prediction_activations['final'][task_key].cpu().detach().numpy()[i, :]).ravel() for
-                     task_key in
-                     dict_keys])
+                    [np.array(reference_activations['final'][task_key].cpu()[i, :]).ravel() for task_key in dict_keys]
+                )
+                plot_outputs_out_final = np.concatenate([
+                    np.array(prediction_activations['final'][task_key].cpu().detach().numpy()[i, :]).ravel()
+                    for task_key in dict_keys
+                ])
                 plt.scatter(plot_outputs_final.ravel(), plot_outputs_out_final.ravel())
-            else:
+            else:  # should be a tensor usually (especially alexnet and resnet)
                 plt.scatter(np.ravel(np.array(reference_activations['final'].cpu())[i, :]),
                             np.ravel(prediction_activations['final'].cpu().detach().numpy()[i, :]))
             plt.title('Layer %s, Image %d, Label "%s" \n Optimization' % (

@@ -17,19 +17,19 @@ class AlexNet(nn.Module):
     def __init__(self, num_classes=1000):
         super(AlexNet, self).__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),
-            nn.ReLU(inplace=False),
-            nn.MaxPool2d(kernel_size=3, stride=2),
-            nn.Conv2d(64, 192, kernel_size=5, padding=2),
-            nn.ReLU(inplace=False),
-            nn.MaxPool2d(kernel_size=3, stride=2),
-            nn.Conv2d(192, 384, kernel_size=3, padding=1),
-            nn.ReLU(inplace=False),
-            nn.Conv2d(384, 256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=False),
-            nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.ReLU(inplace=False),
-            nn.MaxPool2d(kernel_size=3, stride=2),
+            nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),  # conv0
+            nn.ReLU(inplace=False),  # relu0
+            nn.MaxPool2d(kernel_size=3, stride=2),  # maxpool0
+            nn.Conv2d(64, 192, kernel_size=5, padding=2),  # conv1
+            nn.ReLU(inplace=False),  # relu1
+            nn.MaxPool2d(kernel_size=3, stride=2),  # maxpool1
+            nn.Conv2d(192, 384, kernel_size=3, padding=1),  # conv2
+            nn.ReLU(inplace=False),  # relu2
+            nn.Conv2d(384, 256, kernel_size=3, padding=1),  # conv3
+            nn.ReLU(inplace=False),  # relu3
+            nn.Conv2d(256, 256, kernel_size=3, padding=1),  # conv4
+            nn.ReLU(inplace=False),  # relu4
+            nn.MaxPool2d(kernel_size=3, stride=2),  # maxpool2
         )
         featurenames = ['conv0', 'relu0', 'maxpool0',
                         'conv1', 'relu1', 'maxpool1',
@@ -39,6 +39,7 @@ class AlexNet(nn.Module):
                         'maxpool2']
         self.featurenames = featurenames
 
+        # init the fake relus (one for each relu in layer ... apparently do not replace all of them ...)
         self.fake_relu_dict = nn.ModuleDict()
         for layer_name in self.featurenames:
             if 'relu' in layer_name:
@@ -46,13 +47,13 @@ class AlexNet(nn.Module):
 
         self.avgpool = nn.AdaptiveAvgPool2d((6, 6))
         self.classifier = nn.Sequential(
-            nn.Dropout(),
-            nn.Linear(256 * 6 * 6, 4096),
-            nn.ReLU(inplace=False),
-            nn.Dropout(),
-            nn.Linear(4096, 4096),
-            nn.ReLU(inplace=False),
-            nn.Linear(4096, num_classes)
+            nn.Dropout(),  # dropout0
+            nn.Linear(256 * 6 * 6, 4096),  # fc0
+            nn.ReLU(inplace=False),  # fc_relu0
+            nn.Dropout(),  # dropout1
+            nn.Linear(4096, 4096),  # fc1
+            nn.ReLU(inplace=False),  # fc1_relu
+            nn.Linear(4096, num_classes)  # fctop
         )
         self.classifier_names = ['dropout0', 'fc0', 'fc0_relu',
                                  'dropout1', 'fc1', 'fc1_relu',
