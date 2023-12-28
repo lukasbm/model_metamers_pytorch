@@ -187,19 +187,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
         'use_best': False
     }
 
-    # set dropout enable functions. For some reason they are part of the loss? (except the default InversionLoss)
-    if hasattr(synth_kwargs['custom_loss'], 'enable_dropout_flag'):
-        model.enable_dropout_flag = synth_kwargs['custom_loss'].enable_dropout_flag
-        model.enable_dropout_functions = synth_kwargs['custom_loss']._enable_dropout_functions
-        model.disable_dropout_functions = synth_kwargs['custom_loss']._disable_dropout_functions
-
-    # Here because dropout may help optimization for some types of losses
-    try:
-        model.disable_dropout_functions()
-        print('Turning off dropout functions because we are measuring activations')
-    except:
-        pass
-
     # set up initial metamer
     if initial_metamer == "reference":
         metamer = reference_image.clone().cuda()
@@ -225,14 +212,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     all_losses[0] = this_loss.detach().cpu()
     print('Step %d | Layer %s | Loss %f' % (0, layer_to_invert, this_loss))
 
-    # Here because dropout may help optimization for some types of losses
-    # FIXME: what types????? it is not mentioned in the paper
-    try:
-        model.enable_dropout_functions()
-        print('Turning on dropout functions because we are starting synthesis')
-    except:
-        pass
-
     prediction_activations, adv_ex = model(
         metamer,
         reference_representation.clone(),
@@ -249,18 +228,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     # it is quite simple and basically improves the adversarial example
     # multiple times using PGD attack until it becomes the metamer
     for i in range(num_repetitions - 1):
-        try:  # not relevant for basic inversion loss
-            synth_kwargs['custom_loss'].optimization_count = 0
-        except:
-            pass
-
-        if i == num_repetitions - 2:  # Turn off dropout for the last pass through
-            try:
-                model.disable_dropout_functions()
-                print('Turning off dropout functions because it is the last optimization pass through')
-            except:
-                pass
-
         metamer = adv_ex
         synth_kwargs['step_size'] = synth_kwargs['step_size'] / 2  # constrain max L2 norm of grad desc desc
         prediction_activations, adv_ex = model(
