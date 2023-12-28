@@ -11,19 +11,19 @@ def build_net(ds_kwargs={}, return_metamer_layers=False):
     metamer_layers = [
         'input_after_preproc',
         'relu0',
-        # 'relu0_fake_relu',
+        'relu0_fake_relu',
         'relu1',
-        # 'relu1_fake_relu',
+        'relu1_fake_relu',
         'relu2',
-        # 'relu2_fake_relu',
+        'relu2_fake_relu',
         'relu3',
-        # 'relu3_fake_relu',
+        'relu3_fake_relu',
         'relu4',
-        # 'relu4_fake_relu',
+        'relu4_fake_relu',
         'fc0_relu',
-        # 'fc0_relu_fake_relu',
+        'fc0_relu_fake_relu',
         'fc1_relu',
-        # 'fc1_relu_fake_relu',
+        'fc1_relu_fake_relu',
         'final'
     ]
 

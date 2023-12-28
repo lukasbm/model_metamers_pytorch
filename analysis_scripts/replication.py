@@ -6,8 +6,8 @@ from typing import Optional
 import numpy as np
 import torch
 
-from make_metamers_imagenet_16_category_val_400_only_save_metamer_layers import run_image_metamer_generation
-
+# from make_metamers_imagenet_16_category_val_400_only_save_metamer_layers import run_image_metamer_generation
+from replicate.generate import run_image_metamer_generation
 
 def setup_pytorch(seed: Optional[int] = None) -> torch.device:
     """
@@ -82,5 +82,7 @@ def generate(image_id, model_name, output_name, seed):
 if __name__ == "__main__":
     seed = 0
     setup_pytorch(seed=seed)
-    generate(image_id=32, model_name="alexnet", output_name="32_alexnet_standard", seed=seed)
+    # generate(image_id=32, model_name="alexnet", output_name="32_alexnet_standard", seed=seed)
+    # generate(image_id=257, model_name="alexnet", output_name="257_alexnet_standard", seed=seed)
+    generate(image_id=257, model_name="alexnet", output_name="257_alexnet_standard_other_model", seed=seed)
     # generate(image_id=32, model_name="resnet50", output_name="32_resnet50_standard", seed=seed)

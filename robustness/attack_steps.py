@@ -203,7 +203,7 @@ class UnconstrainedStep(AttackerStep):
     def random_perturb(self, x):
         """
         """
-        new_x = x + (ch.rand_like(x) - 0.5).renorm(p=2, dim=0, maxnorm=step_size)
+        new_x = x + (ch.rand_like(x) - 0.5).renorm(p=2, dim=0, maxnorm=self.step_size)
         return ch.clamp(new_x, self.min_value, self.max_value)
 
 
