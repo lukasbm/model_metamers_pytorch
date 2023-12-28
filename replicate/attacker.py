@@ -27,39 +27,14 @@ called directly---instead, these arguments are passed along from
 :meth:`robustness.attacker.AttackerModel.forward`.
 """
 
-from typing import Literal, Union
-
 import torch as ch
 
 from robustness.tools import helpers
-from .attack_steps import AttackerStep, L2Step
-
-STEPS = {
-    '2': L2Step,
-}
+from .attack_steps import L2Step
 
 
 class Attacker(ch.nn.Module):
-    """
-    Attacker class, used to make adversarial examples.
-
-    This is primarily an internal class, you probably want to be looking at
-    :class:`robustness.attacker.AttackerModel`, which is how models are actually
-    served (AttackerModel uses this Attacker class).
-
-    However, the :meth:`robustness.Attacker.forward` function below
-    documents the arguments supported for adversarial attacks specifically.
-    """
-
     def __init__(self, model: ch.nn.Module, dataset):
-        """
-        Initialize the Attacker
-
-        Args:
-            nn.Module model : the PyTorch model to attack
-            Dataset dataset : dataset the model is trained on, only used to get 
-                mean and std for normalization, and min and max for clipping
-        """
         super(Attacker, self).__init__()
         self.preproc = helpers.GraphPreprocessing(dataset)
         self.model = model
@@ -72,70 +47,13 @@ class Attacker(ch.nn.Module):
             target,
             custom_loss,
             *_,
-            constraint: Union[Literal["inf", "2", "unconstrained", "inf_corner", "l2_enforcenorm"], AttackerStep],
             eps,
             step_size,
             iterations,
             targeted=False,
             should_preproc=True,
             orig_input=None,
-            return_image=True,
     ):
-        """
-        Implementation of forward (finds adversarial examples). Note that
-        this does **not** perform inference and should not be called
-        directly; refer to :meth:`robustness.attacker.AttackerModel.forward`
-        for the function you should actually be calling.
-
-        Args:
-            x, target (ch.tensor) : see :meth:`robustness.attacker.AttackerModel.forward`
-            constraint ("inf", "2", "unconstrained", "inf_corner", "l2_enforcenorm")
-                : threat model for adversarial attacks (:math:`\ell_2` ball,
-                :math:`\ell_\infty` ball, :math:`[0, 1]^n`, or
-                custom AttackerStep subclass).
-            eps (float) : radius for threat model.
-            step_size (float) : step size for adversarial attacks.
-            iterations (int): number of steps for adversarial attacks.
-            random_start (bool) : if True, start the attack with a random step.
-            random_restarts (bool) : if True, do many random restarts and
-                take the worst attack (in terms of loss) per input.
-            do_tqdm (bool) : if True, show a tqdm progress bar for the attack.
-            targeted (bool) : if True (False), minimize (maximize) the loss.
-            custom_loss (function|None) : if provided, used instead of the
-                criterion as the loss to maximize/minimize during
-                adversarial attack. The function should take in
-                :samp:`model, x, target` and return a tuple of the form
-                :samp:`loss, None`, where loss is a tensor of size N
-                (per-element loss).
-            should_preproc (bool) : If False, don't preprocess the input
-                (not recommended unless normalization is done in the
-                custom_loss instead).
-            orig_input (ch.tensor|None) : If not None, use this as the
-                center of the perturbation set, rather than :samp:`x`.
-            use_best (bool) : If True, use the best (in terms of loss)
-                iterate of the attack process instead of just the last one.
-            return_image (bool) : If True (default), then return the adversarial
-                example as an image, otherwise return it in its parameterization
-            est_grad (tuple|None) : If not None (default), then these are
-                :samp:`(query_radius [R], num_queries [N])` to use for estimating the
-                gradient instead of autograd. We use the spherical gradient
-                estimator, shown below, along with antithetic sampling [#f1]
-                to reduce variance:
-                :math:`\\nabla_x f(x) \\approx \\sum_{i=0}^N f(x + R\\cdot
-                \\vec{\\delta_i})\\cdot \\vec{\\delta_i}`, where
-                :math:`\delta_i` are randomly sampled from the unit ball.
-        Returns:
-            An adversarial example for x (i.e. within a feasible set
-            determined by `eps` and `constraint`, but classified as:
-
-            * `target` (if `targeted == True`)
-            *  not `target` (if `targeted == False`)
-
-        .. [#f1] This means that we actually draw :math:`N/2` random vectors
-            from the unit ball, and then use :math:`\delta_{N/2+i} =
-            -\delta_{i}`.
-        """
-
         # Can provide a different input to make the feasible set around
         # instead of the initial point
         if orig_input is None:
@@ -145,12 +63,8 @@ class Attacker(ch.nn.Module):
         # Multiplier for gradient ascent [untargeted] or descent [targeted]
         m = -1 if targeted else 1
 
-        # Initialize step class and attacker criterion
-        criterion = ch.nn.CrossEntropyLoss(reduction='none').cuda()
-        step_class = STEPS[constraint] if isinstance(constraint, str) else constraint
-        # instantiate the step class
-        step = step_class(eps=eps, orig_input=orig_input, step_size=step_size,
-                          min_value=self.dataset_min_value, max_value=self.dataset_max_value)
+        step = L2Step(eps=eps, orig_input=orig_input, step_size=step_size, min_value=self.dataset_min_value,
+                      max_value=self.dataset_max_value)
 
         def calc_loss(inp, targ):
             """
@@ -163,17 +77,12 @@ class Attacker(ch.nn.Module):
 
         # Main function for making adversarial examples using PGD
         def get_adv_examples(x):
-            # Keep track of the "best" (worst-case) loss and its
-            # corresponding input
-            best_loss = None
-            best_x = None
-
             # PGD iterates (we will optimize x)
             for _ in range(iterations):
                 x = x.clone().detach().requires_grad_(True)
 
                 # calculating the loss also does the forward pass.
-                losses, _ = calc_loss(step.to_image(x), target)
+                losses, _ = calc_loss(x, target)
                 assert losses.shape[0] == x.shape[0], 'Shape of losses must match input!'
 
                 loss = ch.mean(losses)
@@ -185,15 +94,11 @@ class Attacker(ch.nn.Module):
                     grad = None
 
                 with ch.no_grad():
-                    args = [losses, best_loss, x, best_x]
-                    best_loss, best_x = losses, x
-
                     # update the metamer
                     x = step.step(x, grad)
                     x = step.project(x)
 
-            ret = x.clone().detach()
-            return step.to_image(ret) if return_image else ret
+            return x.clone().detach()
 
         return get_adv_examples(x)
 
@@ -201,46 +106,11 @@ class Attacker(ch.nn.Module):
 class AttackerModel(ch.nn.Module):
     def __init__(self, model, dataset):
         super(AttackerModel, self).__init__()
-        if helpers.has_attr(dataset, 'vone_input_preproc'):
-            # Include VONeBlock outside of Attacker.Turn off preproc for Attacker. 
-            print('Running VONE BLOCK PREPROC')
-            self.vone_transform = ch.nn.Sequential(helpers.GraphPreprocessing(dataset), dataset.vone_input_preproc)
-            self.preproc = ch.nn.Identity()
-        else:
-            self.preproc = helpers.GraphPreprocessing(dataset)
+        self.preproc = helpers.GraphPreprocessing(dataset)
         self.model = model
         self.attacker = Attacker(model, dataset)
-        if helpers.has_attr(dataset, 'vone_input_preproc'):
-            self.attacker.preproc = ch.nn.Identity()
-        # If we have parts of the model that we want to run on the GPu, but do not 
-        # want to include in the adversarial example generation
-        if helpers.has_attr(dataset, 'audio_rep_transform'):
-            self.audio_rep_transform = dataset.audio_rep_transform
 
     def forward(self, inp, target=None, make_adv=False, with_image=True, **attacker_kwargs):
-        """
-        Main function for running inference and generating adversarial
-        examples for a model.
-
-        Parameters:
-            inp (ch.tensor) : input to do inference on [N x input_shape] (e.g. NCHW)
-            target (ch.tensor) : ignored if `make_adv == False`. Otherwise,
-                labels for adversarial attack.
-            make_adv (bool) : whether to make an adversarial example for
-                the model. If true, returns a tuple of the form
-                :samp:`(model_prediction, adv_input)` where
-                :samp:`model_prediction` is a tensor with the *logits* from
-                the network.
-            with_image (bool) : if :samp:`False`, only return the model output
-                (even if :samp:`make_adv == True`).
-        """
-        # Useful for running part of the model first, before generating the 
-        # adversarial examples for the rest of the model
-        if helpers.has_attr(self, 'audio_rep_transform'):
-            inp, _ = self.audio_rep_transform(inp, None)
-        if helpers.has_attr(self, 'vone_transform'):
-            inp = self.vone_transform(inp)
-
         if make_adv:
             assert target is not None
             prev_training = bool(self.training)

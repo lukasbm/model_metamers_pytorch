@@ -170,7 +170,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     synth_kwargs = {
         # same simple loss as in the paper
         'custom_loss': InversionLossLayerReplica(normalize_loss=True),
-        'constraint': '2',  # norm constraint. L2, L_inf, etc.
         'eps': 100000,  # why this high? this is weird, usually 8/255 or some is used
         'step_size': initial_step_size,
         # essentially works like learning rate. halved every 3000 iterations (default: 1.0)
