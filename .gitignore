@@ -2,6 +2,7 @@
 assets
 *.pyc
 *tar
+__pycache__
 
 # exclude generated metamers
 model_analysis_folders/**/metamers/
