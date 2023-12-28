@@ -27,11 +27,11 @@ from matplotlib import pylab as plt
 from analysis_scripts.default_paths import WORDNET_ID_TO_HUMAN_PATH, IMAGENET_PATH
 from analysis_scripts.helpers_16_choice import force_16_choice
 from analysis_scripts.input_helpers import generate_import_image_functions
-from .custom_synthesis_losses import InversionLossLayerReplica
 from robustness import datasets
 from robustness.tools.distance_measures import *
 from robustness.tools.label_maps import CLASS_DICT
 from .attacker import AttackerModel
+from .custom_synthesis_losses import InversionLossLayerReplica
 
 
 class SingleFeatureExtractor(torch.nn.Module):
@@ -213,7 +213,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     else:
         raise ValueError("invalid initial metamer param")
 
-    inverted_reference_representation = reference_activations.contiguous().view(reference_activations.size(0), -1)
+    reference_representation = reference_activations.contiguous().view(reference_activations.size(0), -1)
 
     # Do the optimization, and save the losses occasionally
     all_losses = {}
@@ -221,7 +221,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     # Note for loss calculation: it takes in the target representation but only the prediction input
     # Internally it calculates the output and its according representation.
     # This causes an unnecessary forward pass of the entire model as we do another one below to optimize ...
-    this_loss, _ = calc_loss(model, metamer, inverted_reference_representation.clone(), synth_kwargs['custom_loss'])
+    this_loss, _ = calc_loss(model, metamer, reference_representation.clone(), synth_kwargs['custom_loss'])
     all_losses[0] = this_loss.detach().cpu()
     print('Step %d | Layer %s | Loss %f' % (0, layer_to_invert, this_loss))
 
@@ -235,23 +235,19 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
 
     prediction_activations, adv_ex = model(
         metamer,
-        inverted_reference_representation.clone(),
+        reference_representation.clone(),
         make_adv=True,
         **synth_kwargs,
     )
     prediction_output = class_model(metamer.clone())  # TODO: argmax?
 
-    # FIXME: why is the adversarial example inferenced again in the loss?
-    #   AttackerModel.Forward already does it (prediction_activations)
-    this_loss, _ = calc_loss(model, adv_ex, inverted_reference_representation.clone(), synth_kwargs['custom_loss'])
+    this_loss, _ = calc_loss(model, adv_ex, reference_representation.clone(), synth_kwargs['custom_loss'])
     all_losses[synth_kwargs['iterations']] = this_loss.detach().cpu()
     print('Step %d | Layer %s | Loss %f' % (synth_kwargs['iterations'], layer_to_invert, this_loss))
 
     # this iteration is the interesting part!
     # it is quite simple and basically improves the adversarial example
-    # multiple times using PGD until it becomes the metamer
-    # FIXME: why don't we check the loss etc. in the loop?
-    #   It could avoid "overfitting" and return more recognizable metamers?
+    # multiple times using PGD attack until it becomes the metamer
     for i in range(num_repetitions - 1):
         try:  # not relevant for basic inversion loss
             synth_kwargs['custom_loss'].optimization_count = 0
@@ -259,8 +255,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
             pass
 
         if i == num_repetitions - 2:  # Turn off dropout for the last pass through
-            # TODO: make this more permanent/flexible
-            # Here because dropout may help optimization for some types of losses
             try:
                 model.disable_dropout_functions()
                 print('Turning off dropout functions because it is the last optimization pass through')
@@ -271,13 +265,13 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
         synth_kwargs['step_size'] = synth_kwargs['step_size'] / 2  # constrain max L2 norm of grad desc desc
         prediction_activations, adv_ex = model(
             metamer,
-            inverted_reference_representation.clone(),
+            reference_representation.clone(),
             make_adv=True,
             **synth_kwargs,
         )  # Image inversion using PGD
         prediction_output = class_model(metamer.clone())  # FIXME: argmax?
 
-        this_loss, _ = calc_loss(model, adv_ex, inverted_reference_representation.clone(),
+        this_loss, _ = calc_loss(model, adv_ex, reference_representation.clone(),
                                  synth_kwargs['custom_loss'])
         all_losses[(i + 2) * synth_kwargs['iterations']] = this_loss.detach().cpu()
         print('Step %d | Layer %s | Loss %f' % (synth_kwargs['iterations'] * (i + 2), layer_to_invert, this_loss))
@@ -322,17 +316,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     ###############################
     # COMPUTATION DONE ############
     ###############################
-    # we have (for each layer):
-    # rep_out_dict: prediction representations for each layer <-- will usually be none (see alexnet.py forward)
-    # predictions_out_dict: prediction outputs for each layer <--- will be the logits
-    # all_outputs_out_dict: prediction activations for each layer <-- will be the activations (featre extraction)
-    # xadv_dict: the adversarial example for each layer <-- the metamer for each layer
-    # all_losses_dict: the losses for each layer <-- list of losses (after each iteration steps)
-    # predicted_labels_out_dict: the predicted labels for each layer <-- will be the logits
-    # predicted_16_cat_labels_out_dict: the predicted 16 category labels for each layer <-- will be the 16class name
-    # reference_16_cat_prediction: the original 16 category label <-- will be the 16class name
-    # reference_predictions: the original predictions <-- will be the logits
-
     print("iteration/computation complete, start evaluation")
 
     # add params and outputs to pckl
@@ -368,42 +351,14 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
         reference_output = reference_output.detach().cpu()
     pckl_output_dict['predictions_orig'] = reference_output
 
-    # TODO clean up and save reference representation for later evaluation
-    # if type(reference_representation) is dict:
-    #     for dict_key, dict_value in reference_representation.items():
-    #         if reference_representation is not None:
-    #             reference_representation[dict_key] = dict_value.detach().cpu()
-    # else:
-    #     if reference_representation is not None:
-    #         reference_representation = reference_representation.detach().cpu()
-    # pckl_output_dict['rep_orig'] = reference_representation
-    # pckl_output_dict['sound_orig'] = reference_image.detach().cpu()
+    if reference_representation is not None:
+        reference_representation = reference_representation.detach().cpu()
+    pckl_output_dict['rep_orig'] = reference_representation
+    pckl_output_dict['sound_orig'] = reference_image.detach().cpu()
 
     # Just use the name of the loss to save synthkwargs don't save the function
     synth_kwargs['custom_loss'] = loss_func_name
     pckl_output_dict['synth_kwargs'] = synth_kwargs
-
-    # TODO: Calculate distance measures for each layer, use the cpu versions of tensors
-    # all_distance_measures = {}
-    # for layer_to_invert in metamer_layers:
-    #     all_distance_measures[layer_to_invert] = {}
-    #     for layer_to_measure in metamer_layers:  # pckl_output_dict['all_outputs_orig'].keys():
-    #         met_rep = pckl_output_dict['all_outputs_out_dict'][layer_to_invert][layer_to_measure].numpy().copy().ravel()
-    #         orig_rep = pckl_output_dict['all_outputs_orig'][layer_to_measure].numpy().copy().ravel()
-    #         spearman_rho = compute_spearman_rho_pair([met_rep, orig_rep])
-    #         pearson_r = compute_pearson_r_pair([met_rep, orig_rep])
-    #         dB_SNR, norm_signal, norm_noise = compute_snr_db([orig_rep, met_rep])
-    #         all_distance_measures[layer_to_invert][layer_to_measure] = {
-    #             'spearman_rho': spearman_rho,
-    #             'pearson_r': pearson_r,
-    #             'dB_SNR': dB_SNR,
-    #             'norm_signal': norm_signal,
-    #             'norm_noise': norm_noise,
-    #         }
-    #         if layer_to_invert == layer_to_measure:
-    #             print('Layer %s' % layer_to_measure)
-    #             print(all_distance_measures[layer_to_invert][layer_to_measure])
-    # pckl_output_dict['all_distance_measures'] = all_distance_measures
 
     with open(pckl_path, 'wb') as handle:
         pickle.dump(pckl_output_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -445,7 +400,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
             layer_to_invert, i, synth_16_cat_prediction))
 
         # Set synthesis success based on the 16 category labels -- we can later evaluate the 1000 category labels.
-        # FIXME: does the 1000 class evaluation happen? NO!
         synth_success = reference_16_cat_prediction == synth_16_cat_prediction
 
         orig_label = np.argmax(reference_predictions)
@@ -507,18 +461,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
                     int(np.argmax(prediction_output['signal/word_int'][i].detach().cpu().numpy()))]))
 
         plt.close()
-
-        # TODO: save reference image
-        # if layer_idx == 0:
-        #     if reference_image[i].shape[0] == 3:
-        #         orig_image = Image.fromarray(
-        #             (np.rollaxis(np.array(reference_image[i].cpu().numpy()), 0,
-        #                          3) * scale_image_save_PIL_factor).astype(
-        #                 'uint8'))
-        #     elif reference_image[i].shape[0] == 1:
-        #         orig_image = Image.fromarray(
-        #             (np.array(reference_image[i].cpu().numpy())[0] * scale_image_save_PIL_factor).astype('uint8'))
-        #     orig_image.save(base_filepath + '/orig.png', 'PNG')
 
         # Only save the individual generated image if the layer optimization succeeded
         if synth_success or override_save:
