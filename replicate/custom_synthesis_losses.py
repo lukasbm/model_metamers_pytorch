@@ -1,6 +1,3 @@
-import random
-from math import floor
-
 import torch
 
 
@@ -15,8 +12,10 @@ class InversionLossLayerReplica(torch.nn.Module):
         activations = model(inp)
         rep = activations.contiguous().view(activations.size(0), -1)
         if self.normalize_loss:
-            loss = torch.div(torch.norm(rep - targ, dim=1), torch.norm(targ, dim=1))
+            loss = torch.div(
+                torch.norm(rep - targ, dim=1),
+                torch.norm(targ, dim=1)
+            )
         else:
             loss = torch.norm(rep - targ, dim=1)
         return loss, None
-        # FIXME: should we call torch.mean(loss) to only return a scalar?

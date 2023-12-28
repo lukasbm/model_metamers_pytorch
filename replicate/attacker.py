@@ -221,12 +221,7 @@ class Attacker(ch.nn.Module):
 
                 # calculate gradient
                 if step.use_grad:
-                    if est_grad is None:
-                        # invert loss if targeted
-                        grad, = ch.autograd.grad(m * loss, [x])
-                    else:
-                        f = lambda _x, _y: m * calc_loss(step.to_image(_x), _y)[0]
-                        grad = helpers.calc_est_grad(f, x, target, *est_grad)
+                    grad, = ch.autograd.grad(m * loss, [x])
                 else:
                     grad = None
 
@@ -251,29 +246,7 @@ class Attacker(ch.nn.Module):
             best_loss, best_x = replace_best(*args)
             return step.to_image(best_x) if return_image else best_x
 
-        # Random restarts: repeat the attack and find the worst-case
-        # example for each input in the batch
-        if random_restarts:
-            to_ret = None
-
-            orig_cpy = x.clone().detach()
-            for _ in range(random_restarts):
-                adv = get_adv_examples(orig_cpy)
-
-                if to_ret is None:
-                    to_ret = adv.detach()
-
-                _, output = calc_loss(adv, target)
-                corr, = helpers.accuracy(output, target, topk=(1,), exact=True)
-                corr = corr.byte()
-                misclass = ~corr
-                to_ret[misclass] = adv[misclass]
-
-            adv_ret = to_ret
-        else:
-            adv_ret = get_adv_examples(x)
-
-        return adv_ret
+        return get_adv_examples(x)
 
 
 class AttackerModel(ch.nn.Module):
