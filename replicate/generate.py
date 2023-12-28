@@ -88,12 +88,13 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     predicted_labels_out_dict = {}
     predicted_16_cat_labels_out_dict = {}
 
-    BATCH_SIZE = 1  # TODO(jfeather): remove batch references -- they are unnecessary and not used.
+    BATCH_SIZE = 1
 
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    layer_to_invert = "features.7"
+    # init model (and feature extractor)
+    layer_to_invert = "features.9"
     class_model = torch.hub.load('pytorch/vision', 'alexnet', pretrained=True)
     fe_model = SingleFeatureExtractor(class_model, layer_to_invert)
     ds = datasets.ImageNet(IMAGENET_PATH)
@@ -108,8 +109,8 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
 
     # Load dataset for metamer generation
     # this loads the image.
-    INPUTIMAGEFUNC = generate_import_image_functions(input_image_func_name, data_format='NCHW')
-    image_dict = INPUTIMAGEFUNC(image_id)  # load the image from the reduced dataset (400 images, see /assets)
+    input_image_func = generate_import_image_functions(input_image_func_name, data_format='NCHW')
+    image_dict = input_image_func(image_id)  # load the image from the reduced dataset (400 images, see /assets)
     image_dict['image_orig'] = image_dict['image']
     # Preprocess to be in the format for pytorch
     image_dict['image'] = rescale_image(image_dict['image'], image_dict)  # essentially a ToTensor transform
@@ -174,9 +175,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
         'step_size': initial_step_size,
         # essentially works like learning rate. halved every 3000 iterations (default: 1.0)
         'iterations': iterations,  # iterations to generate one adv example
-        'do_tqdm': False,
         'targeted': True,
-        'use_best': False
     }
 
     # set up initial metamer
@@ -202,6 +201,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     # This causes an unnecessary forward pass of the entire model as we do another one below to optimize ...
     this_loss, _ = calc_loss(model, metamer, reference_representation.clone(), synth_kwargs['custom_loss'])
     all_losses[0] = this_loss.detach().cpu()
+
     print('Step %d | Layer %s | Loss %f' % (0, layer_to_invert, this_loss))
 
     prediction_activations, adv_ex = model(
@@ -215,6 +215,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
 
     this_loss, _ = calc_loss(model, adv_ex, reference_representation.clone(), synth_kwargs['custom_loss'])
     all_losses[synth_kwargs['iterations']] = this_loss.detach().cpu()
+
     print('Step %d | Layer %s | Loss %f' % (synth_kwargs['iterations'], layer_to_invert, this_loss))
 
     # this iteration is the interesting part!
@@ -235,6 +236,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
         this_loss, _ = calc_loss(model, adv_ex, reference_representation.clone(),
                                  synth_kwargs['custom_loss'])
         all_losses[(i + 2) * synth_kwargs['iterations']] = this_loss.detach().cpu()
+
         print('Step %d | Layer %s | Loss %f' % (synth_kwargs['iterations'] * (i + 2), layer_to_invert, this_loss))
 
     print("all iteration steps completed!")

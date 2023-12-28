@@ -27,24 +27,15 @@ called directly---instead, these arguments are passed along from
 :meth:`robustness.attacker.AttackerModel.forward`.
 """
 
-import os
 from typing import Literal, Union
 
 import torch as ch
 
-from .attack_steps import AttackerStep
-
-if int(os.environ.get("NOTEBOOK_MODE", 0)) == 1:
-    from tqdm import tqdm_notebook as tqdm
-else:
-    from tqdm import tqdm
-
 from robustness.tools import helpers
-from . import attack_steps
+from .attack_steps import AttackerStep, L2Step
 
 STEPS = {
-    'inf': attack_steps.LinfStep,
-    '2': attack_steps.L2Step,
+    '2': L2Step,
 }
 
 
@@ -79,21 +70,16 @@ class Attacker(ch.nn.Module):
             self,
             x,
             target,
+            custom_loss,
             *_,
             constraint: Union[Literal["inf", "2", "unconstrained", "inf_corner", "l2_enforcenorm"], AttackerStep],
             eps,
             step_size,
             iterations,
-            random_start=False,
-            random_restarts=False,
-            do_tqdm=False,
             targeted=False,
-            custom_loss=None,
             should_preproc=True,
             orig_input=None,
-            use_best=True,
             return_image=True,
-            est_grad=None
     ):
         """
         Implementation of forward (finds adversarial examples). Note that
@@ -166,51 +152,24 @@ class Attacker(ch.nn.Module):
         step = step_class(eps=eps, orig_input=orig_input, step_size=step_size,
                           min_value=self.dataset_min_value, max_value=self.dataset_max_value)
 
-        def calc_loss(inp, target):
+        def calc_loss(inp, targ):
             """
             Calculates the loss of an input with respect to target labels
             Uses custom loss (if provided) otherwise the criterion
             """
             if should_preproc:
                 inp = self.preproc(inp)
-
-            if custom_loss:
-                return custom_loss(self.model, inp, target)
-            else:
-                output = self.model(inp)
-                return criterion(output, target), output
+            return custom_loss(self.model, inp, targ)
 
         # Main function for making adversarial examples using PGD
         def get_adv_examples(x):
-            # Random start (to escape certain types of gradient masking)
-            if random_start:
-                x = step.random_perturb(x)
-
-            iterator = range(iterations)
-            if do_tqdm:
-                iterator = tqdm(iterator)
-
             # Keep track of the "best" (worst-case) loss and its
             # corresponding input
             best_loss = None
             best_x = None
 
-            def replace_best(loss, bloss, x, bx):
-                """
-                A function that updates the best loss and best input
-                """
-                if bloss is None:
-                    bx = x.clone().detach()
-                    bloss = loss.clone().detach()
-                else:
-                    replace = m * bloss < m * loss
-                    bx[replace] = x[replace].clone().detach()
-                    bloss[replace] = loss[replace]
-
-                return bloss, bx
-
             # PGD iterates (we will optimize x)
-            for _ in iterator:
+            for _ in range(iterations):
                 x = x.clone().detach().requires_grad_(True)
 
                 # calculating the loss also does the forward pass.
@@ -227,47 +186,19 @@ class Attacker(ch.nn.Module):
 
                 with ch.no_grad():
                     args = [losses, best_loss, x, best_x]
-                    best_loss, best_x = replace_best(*args) if use_best else (losses, x)
+                    best_loss, best_x = losses, x
 
                     # update the metamer
                     x = step.step(x, grad)
                     x = step.project(x)
-                    if do_tqdm:
-                        iterator.set_description("Current loss: {l}".format(l=loss))
 
-            # Save computation (don't compute last loss) if not use_best
-            if not use_best:
-                ret = x.clone().detach()
-                return step.to_image(ret) if return_image else ret
-
-            # final calculation
-            losses, _ = calc_loss(step.to_image(x), target)
-            args = [losses, best_loss, x, best_x]
-            best_loss, best_x = replace_best(*args)
-            return step.to_image(best_x) if return_image else best_x
+            ret = x.clone().detach()
+            return step.to_image(ret) if return_image else ret
 
         return get_adv_examples(x)
 
 
 class AttackerModel(ch.nn.Module):
-    """
-    Wrapper class for adversarial attacks on models. Given any normal
-    model (a ``ch.nn.Module`` instance), wrapping it in AttackerModel allows
-    for convenient access to adversarial attacks and other applications.::
-
-        model = ResNet50()
-        model = AttackerModel(model)
-        x = ch.rand(10, 3, 32, 32) # random images
-        y = ch.zeros(10) # label 0
-        out, new_im = model(x, y, make_adv=True) # adversarial attack
-        out, new_im = model(x, y, make_adv=True, targeted=True) # targeted attack
-        out = model(x) # normal inference (no label needed)
-
-    More code examples available in the documentation for `forward`.
-    For a more comprehensive overview of this class, see `our detailed
-    walkthrough <../example_usage/input_space_manipulation>`_
-    """
-
     def __init__(self, model, dataset):
         super(AttackerModel, self).__init__()
         if helpers.has_attr(dataset, 'vone_input_preproc'):

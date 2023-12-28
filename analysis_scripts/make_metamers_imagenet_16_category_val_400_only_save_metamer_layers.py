@@ -141,7 +141,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     model.eval()
 
     with torch.no_grad():
-        (reference_output, reference_representation, reference_activations), reference_image = model(
+        (reference_output, _, reference_activations), reference_image = model(
             reference_image.cuda(), with_latent=True, fake_relu=fake_relu)
 
     # Calculate human-readable labels and 16 category labels for the original image
@@ -511,7 +511,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
 
             # scatter plot for final layer (final orig vs. final synth)
             plt.subplot(4, BATCH_SIZE, BATCH_SIZE * 3 + i + 1)
-            if type(reference_activations['final']) is dict:
+            if type(reference_activations['final']) is dict:  # usually not the case ...
                 dict_keys = list(reference_activations['final'].keys())  # Layers, So we ensure the same order
                 plot_outputs_final = np.concatenate(
                     [np.array(reference_activations['final'][task_key].cpu()[i, :]).ravel() for task_key in dict_keys]
