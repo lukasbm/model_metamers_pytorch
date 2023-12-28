@@ -84,5 +84,5 @@ if __name__ == "__main__":
     setup_pytorch(seed=seed)
     # generate(image_id=32, model_name="alexnet", output_name="32_alexnet_standard", seed=seed)
     # generate(image_id=257, model_name="alexnet", output_name="257_alexnet_standard", seed=seed)
-    generate(image_id=257, model_name="alexnet", output_name="257_alexnet_standard_other_model", seed=seed)
+    generate(image_id=257, model_name="alexnet", output_name="257_alexnet_standard_my_fe_model_relu2", seed=seed)
     # generate(image_id=32, model_name="resnet50", output_name="32_resnet50_standard", seed=seed)

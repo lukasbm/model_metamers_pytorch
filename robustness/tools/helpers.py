@@ -3,6 +3,7 @@ import shutil
 import dill
 import torch as ch
 
+import robustness.datasets
 from robustness.audio_functions import audio_transforms
 from . import constants
 
@@ -113,7 +114,7 @@ class GraphPreprocessing(ch.nn.Module):
     Representation Conversion.
     """
 
-    def __init__(self, dataset):
+    def __init__(self, dataset: robustness.datasets.DataSet):
         super(GraphPreprocessing, self).__init__()
         self.normalize = InputNormalize(dataset.mean, dataset.std,
                                         dataset.min_value, dataset.max_value)

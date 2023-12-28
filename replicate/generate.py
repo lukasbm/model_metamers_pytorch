@@ -80,7 +80,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
         This would otherwise use simplified gradients to improve optimization.
         NOTE: remember to exclude fake_relu layers from the models metamer_layers in the respective build_network.py
     """
-
     predictions_out_dict = {}
     rep_out_dict = {}
     all_outputs_out_dict = {}
@@ -94,7 +93,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    layer_to_invert = "features.9"
+    layer_to_invert = "features.7"
     class_model = torch.hub.load('pytorch/vision', 'alexnet', pretrained=True)
     fe_model = SingleFeatureExtractor(class_model, layer_to_invert)
     ds = datasets.ImageNet(IMAGENET_PATH)
@@ -114,15 +113,8 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     image_dict['image_orig'] = image_dict['image']
     # Preprocess to be in the format for pytorch
     image_dict['image'] = rescale_image(image_dict['image'], image_dict)  # essentially a ToTensor transform
-    if use_dataset_preproc:  # Apply for some models, for instance if we have greyscale images or different sizes.
-        # essentially turn it back into a PIL image and apply the dataset transforms
-        image_dict['image'] = ds.transform_test(Image.fromarray(np.rollaxis(np.uint8(image_dict['image'] * 255), 0, 3)))
-        scale_image_save_PIL_factor = ds.scale_image_save_PIL_factor
-        init_noise_mean = ds.init_noise_mean
-    else:
-        scale_image_save_PIL_factor = 255
-        init_noise_mean = 0.5
-
+    scale_image_save_PIL_factor = 255
+    init_noise_mean = 0.5
     # Add a batch dimension to the input image
     # finally turn into a pytorch tensor
     reference_image = torch.tensor(np.expand_dims(image_dict['image'], 0)).float().contiguous()
@@ -170,7 +162,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
 
     # Make the noise input (will use for all the input seeds)
     # the noise scale is typically << the noise mean, so we don't have to worry about negative values.
-    initial_noise = (torch.randn_like(reference_image) * noise_scale + init_noise_mean).detach().cpu().numpy()
+    initial_noise = (torch.randn_like(reference_image) * noise_scale + init_noise_mean)
 
     # Choose the inversion parameters (will run 4x the iterations, reducing the learning rate each time)
     # will be passed to Attacker to generate adv example
@@ -192,7 +184,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
         metamer = reference_image.clone().cuda()
     elif initial_metamer == "noise":
         # Use same noise for every layer.
-        metamer = torch.clamp(torch.from_numpy(initial_noise), ds.min_value, ds.max_value).cuda()
+        metamer = torch.clamp(initial_noise, ds.min_value, ds.max_value).cuda()
     elif initial_metamer == "uniform":
         metamer = torch.distributions.Uniform(0, 1).sample(reference_image.shape).cuda()
     elif initial_metamer == "constant":
@@ -218,7 +210,8 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
         make_adv=True,
         **synth_kwargs,
     )
-    prediction_output = class_model(metamer.clone())  # TODO: argmax?
+    with torch.no_grad():
+        prediction_output = class_model(metamer.clone())
 
     this_loss, _ = calc_loss(model, adv_ex, reference_representation.clone(), synth_kwargs['custom_loss'])
     all_losses[synth_kwargs['iterations']] = this_loss.detach().cpu()
@@ -236,7 +229,8 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
             make_adv=True,
             **synth_kwargs,
         )  # Image inversion using PGD
-        prediction_output = class_model(metamer.clone())  # FIXME: argmax?
+        metamer = adv_ex
+        prediction_output = class_model(adv_ex.clone())
 
         this_loss, _ = calc_loss(model, adv_ex, reference_representation.clone(),
                                  synth_kwargs['custom_loss'])
