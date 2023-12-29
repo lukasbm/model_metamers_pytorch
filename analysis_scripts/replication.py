@@ -9,6 +9,7 @@ import torch
 # from make_metamers_imagenet_16_category_val_400_only_save_metamer_layers import run_image_metamer_generation
 from replicate.generate import run_image_metamer_generation
 
+
 def setup_pytorch(seed: Optional[int] = None) -> torch.device:
     """
     sets up pytorch with all kinds of settings and performance optimizations

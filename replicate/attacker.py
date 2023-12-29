@@ -1,42 +1,12 @@
-"""
-**For most use cases, this can just be considered an internal class and
-ignored.**
-
-This module houses the :class:`robustness.attacker.Attacker` and
-:class:`robustness.attacker.AttackerModel` classes. 
-
-:class:`~robustness.attacker.Attacker` is an internal class that should not be
-imported/called from outside the library.
-:class:`~robustness.attacker.AttackerModel` is a "wrapper" class which is fed a
-model and adds to it adversarial attack functionalities as well as other useful
-options. See :meth:`robustness.attacker.AttackerModel.forward` for documentation
-on which arguments AttackerModel supports, and see
-:meth:`robustness.attacker.Attacker.forward` for the arguments pertaining to
-adversarial examples specifically.
-
-For a demonstration of this module in action, see the walkthrough
-":doc:`../example_usage/input_space_manipulation`"
-
-**Note 1**: :samp:`.forward()` should never be called directly but instead the
-AttackerModel object itself should be called, just like with any
-:samp:`nn.Module` subclass.
-
-**Note 2**: Even though the adversarial example arguments are documented in
-:meth:`robustness.attacker.Attacker.forward`, this function should never be
-called directly---instead, these arguments are passed along from
-:meth:`robustness.attacker.AttackerModel.forward`.
-"""
-
 import torch as ch
 
-from robustness.tools import helpers
-from .attack_steps import L2Step
+from replicate.attack_steps import L2Step
 
 
 class Attacker(ch.nn.Module):
-    def __init__(self, model: ch.nn.Module, dataset):
+    def __init__(self, model: ch.nn.Module, dataset, preproc):
         super(Attacker, self).__init__()
-        self.preproc = helpers.GraphPreprocessing(dataset)
+        self.preproc = preproc
         self.model = model
         self.dataset_min_value = dataset.min_value
         self.dataset_max_value = dataset.max_value
@@ -51,7 +21,6 @@ class Attacker(ch.nn.Module):
             step_size,
             iterations,
             targeted=False,
-            should_preproc=True,
             orig_input=None,
     ):
         # Can provide a different input to make the feasible set around
@@ -71,8 +40,7 @@ class Attacker(ch.nn.Module):
             Calculates the loss of an input with respect to target labels
             Uses custom loss (if provided) otherwise the criterion
             """
-            if should_preproc:
-                inp = self.preproc(inp)
+            inp = self.preproc(inp)
             return custom_loss(self.model, inp, targ)
 
         # Main function for making adversarial examples using PGD
@@ -104,11 +72,11 @@ class Attacker(ch.nn.Module):
 
 
 class AttackerModel(ch.nn.Module):
-    def __init__(self, model, dataset):
+    def __init__(self, model, dataset, preproc):
         super(AttackerModel, self).__init__()
-        self.preproc = helpers.GraphPreprocessing(dataset)
+        self.preproc = preproc
         self.model = model
-        self.attacker = Attacker(model, dataset)
+        self.attacker = Attacker(model, dataset, preproc)
 
     def forward(self, inp, target=None, make_adv=False, with_image=True, **attacker_kwargs):
         if make_adv:

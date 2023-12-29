@@ -20,18 +20,17 @@ from typing import Optional, Literal
 
 import simple_parsing
 import torch
-import torchvision
+import torchvision.models.feature_extraction as tv_fe
 from PIL import Image
 from matplotlib import pylab as plt
 
-from analysis_scripts.default_paths import WORDNET_ID_TO_HUMAN_PATH, IMAGENET_PATH
+from analysis_scripts.default_paths import WORDNET_ID_TO_HUMAN_PATH
 from analysis_scripts.helpers_16_choice import force_16_choice
 from analysis_scripts.input_helpers import generate_import_image_functions
-from robustness import datasets
+from replicate.attacker import AttackerModel
+from replicate.datasets import ImageNet
 from robustness.tools.distance_measures import *
 from robustness.tools.label_maps import CLASS_DICT
-from .attacker import AttackerModel
-from .custom_synthesis_losses import InversionLossLayerReplica
 
 
 class SingleFeatureExtractor(torch.nn.Module):
@@ -45,7 +44,7 @@ class SingleFeatureExtractor(torch.nn.Module):
 
     def __init__(self, model: torch.nn.Module, layer: str):
         super().__init__()
-        self.model = torchvision.models.feature_extraction.create_feature_extractor(model, [layer])
+        self.model = tv_fe.create_feature_extractor(model, [layer])
         self.layer = layer
 
     def forward(self, x, *args, **kwargs):
@@ -70,6 +69,37 @@ def calc_loss(model: AttackerModel, inp, target, custom_loss, should_preproc=Tru
     return custom_loss(model.model, inp, target)
 
 
+class InputNormalize(torch.nn.Module):
+    def __init__(self, new_mean, new_std, min_value, max_value):
+        super(InputNormalize, self).__init__()
+        new_std = new_std[..., None, None]
+        new_mean = new_mean[..., None, None]
+
+        self.register_buffer("new_mean", new_mean)
+        self.register_buffer("new_std", new_std)
+
+        self.min_value = min_value
+        self.max_value = max_value
+
+    def forward(self, x):
+        x = torch.clamp(x, self.min_value, self.max_value)
+        x_normalized = (x - self.new_mean) / self.new_std
+        return x_normalized
+
+
+def inversion_loss_feathers(model, inp, targ, normalize_loss=True):
+    activations = model(inp)
+    rep = activations.contiguous().view(activations.size(0), -1)
+    if normalize_loss:
+        loss = torch.div(
+            torch.norm(rep - targ, dim=1),
+            torch.norm(targ, dim=1)
+        )
+    else:
+        loss = torch.norm(rep - targ, dim=1)
+    return loss, None
+
+
 def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name, seed, overwrite_pckl,
                                  use_dataset_preproc, initial_step_size, noise_scale, iterations, num_repetitions,
                                  override_save, model_directory,
@@ -88,6 +118,15 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     predicted_labels_out_dict = {}
     predicted_16_cat_labels_out_dict = {}
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    preproc = InputNormalize(
+        new_mean=torch.tensor([0.485, 0.456, 0.406], device=device),
+        new_std=torch.tensor([0.229, 0.224, 0.225], device=device),
+        min_value=0.0,
+        max_value=1.0,
+    )
+
     BATCH_SIZE = 1
 
     torch.manual_seed(seed)
@@ -97,8 +136,8 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     layer_to_invert = "features.9"
     class_model = torch.hub.load('pytorch/vision', 'alexnet', pretrained=True)
     fe_model = SingleFeatureExtractor(class_model, layer_to_invert)
-    ds = datasets.ImageNet(IMAGENET_PATH)
-    model = AttackerModel(fe_model, ds)
+    ds = ImageNet()
+    model = AttackerModel(fe_model, ds, preproc=preproc)
     assert isinstance(model, torch.nn.Module), "model is no valid torch module"
     assert type(model) is AttackerModel, "model is no valid robustness attacker model"
 
@@ -169,7 +208,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     # will be passed to Attacker to generate adv example
     synth_kwargs = {
         # same simple loss as in the paper
-        'custom_loss': InversionLossLayerReplica(normalize_loss=True),
+        'custom_loss': inversion_loss_feathers,
         'eps': 100000,  # why this high? this is weird, usually 8/255 or some is used
         'step_size': initial_step_size,
         # essentially works like learning rate. halved every 3000 iterations (default: 1.0)
