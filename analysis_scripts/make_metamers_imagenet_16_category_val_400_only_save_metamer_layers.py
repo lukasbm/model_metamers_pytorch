@@ -115,6 +115,8 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     # finally turn into a pytorch tensor
     reference_image = torch.tensor(np.expand_dims(image_dict['image'], 0)).float().contiguous()
 
+    print("reference_image_size:", reference_image.size())
+
     # Label name for the 16 way imagenet task
     label_name = image_dict['correct_response']
 
@@ -276,6 +278,15 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
 
         print("all iteration steps completed!")
         print("losses:", all_losses)
+
+        with open(os.path.join(os.path.dirname(pckl_path), f"simple_output_{layer_to_invert}.pckl"), 'wb') as handle:
+            data = {
+                "x_adv": adv_ex.detach().cpu(),
+                "reference_image": reference_image.detach().cpu(),
+                "activations": prediction_activations[layer_to_invert].detach().cpu(),
+                "reference_activations": reference_activations[layer_to_invert].detach().cpu(),
+            }
+            pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         # save last prediction for later evaluation
         if type(prediction_output) is dict:  # it should be a logits tensor though
