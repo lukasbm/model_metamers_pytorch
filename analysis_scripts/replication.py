@@ -73,37 +73,6 @@ def generate_original(image_id, model_name, output_name, seed):
 
 
 def generate_simple(output_name):
-    # image_path = "/home/lukas/Documents/uni/feathers_model_metamers_pytorch/assets/full_400_16_class_imagenet_val_images/257_10_dog_n02085782_00031965.JPEG"
-    # image = torchvision.io.read_image(image_path, mode=ImageReadMode.RGB)
-    # transform = tv.Compose([
-    #     tv.CenterCrop(224),
-    #     tv.ToDtype(torch.float, scale=True),
-    # ])
-    # image = transform(image)
-    # image = image.unsqueeze(0).contiguous().cuda()
-    #
-    # from PIL import Image
-    # img_pil = Image.open(image_path)
-    # width, height = img_pil.size
-    #
-    # # do a square crop
-    # smallest_dim = min((width, height))
-    # left = (width - smallest_dim) // 2
-    # right = (width + smallest_dim) // 2
-    # top = (height - smallest_dim) // 2
-    # bottom = (height + smallest_dim) // 2
-    #
-    # im_shape = 320
-    # img_pil = img_pil.crop((left, top, right, bottom))
-    # img_pil = img_pil.resize((im_shape, im_shape))
-    # img_pil.load()
-    # img1 = np.asarray(img_pil, dtype="float32")
-    # img1 = np.rollaxis(np.array(img1), 2, 0)
-    # img1 = img1 / 255
-    # image = torch.tensor(np.expand_dims(img1, 0)).float().contiguous()
-    # print(image.shape)
-    # assert image.shape == (1, 3, im_shape, im_shape)
-
     metamer_generation_simple(
         output_name=output_name,
         image_id=257,

@@ -13,7 +13,6 @@ NOTE: Vision only!
 
 import os
 import pickle
-from pprint import pprint
 from typing import Optional
 
 import numpy as np
@@ -41,13 +40,6 @@ class SingleFeatureExtractor(torch.nn.Module):
 
     def forward(self, x, *args, **kwargs):
         return self.model(x, *args, **kwargs)[self.layer]
-
-
-def rescale_image(image, image_dict):
-    """The image into the pytorch model should be between 0-1"""
-    if image_dict['max_value_image_set'] == 255:
-        image = image / 255.
-    return image
 
 
 def calc_loss(model: AttackerModel, inp, target, custom_loss, should_preproc=True):
@@ -99,8 +91,50 @@ def load_image(image_id):
     image_dict = input_image_func(image_id)  # load the image from the reduced dataset (400 images, see /assets)
     image_dict['image_orig'] = image_dict['image']
     # Preprocess to be in the format for pytorch
-    image_dict['image'] = rescale_image(image_dict['image'], image_dict)  # essentially a ToTensor transform
+    if image_dict['max_value_image_set'] == 255:
+        image_dict['image'] = image_dict['image'] / 255.
     return torch.tensor(np.expand_dims(image_dict['image'], 0)).float().contiguous()
+
+
+def load_image_257():
+    image_path = "/home/lukas/Documents/uni/feathers_model_metamers_pytorch/assets/full_400_16_class_imagenet_val_images/257_10_dog_n02085782_00031965.JPEG"
+    from torchvision.io import ImageReadMode
+    import torchvision
+    import torchvision.transforms.v2 as tv
+    image = torchvision.io.read_image(image_path, mode=ImageReadMode.RGB)
+    transform = tv.Compose([
+        tv.CenterCrop(224),
+        tv.ToDtype(torch.float, scale=True),
+    ])
+    image = transform(image)
+    image = image.unsqueeze(0).contiguous().cuda()
+    return image
+
+
+def load_image_257_2():
+    from PIL import Image
+
+    image_path = "/home/lukas/Documents/uni/feathers_model_metamers_pytorch/assets/full_400_16_class_imagenet_val_images/257_10_dog_n02085782_00031965.JPEG"
+    img_pil = Image.open(image_path)
+    width, height = img_pil.size
+
+    # do a square crop
+    smallest_dim = min((width, height))
+    left = (width - smallest_dim) // 2
+    right = (width + smallest_dim) // 2
+    top = (height - smallest_dim) // 2
+    bottom = (height + smallest_dim) // 2
+
+    im_shape = 320
+    img_pil = img_pil.crop((left, top, right, bottom))
+    img_pil = img_pil.resize((im_shape, im_shape))
+    img_pil.load()
+    img1 = np.asarray(img_pil, dtype="float32")
+    img1 = np.rollaxis(np.array(img1), 2, 0)
+    img1 = img1 / 255
+    image = torch.tensor(np.expand_dims(img1, 0)).float().contiguous()
+    print(image.shape)
+    assert image.shape == (1, 3, im_shape, im_shape)
 
 
 def run_image_metamer_generation(image_id, output_name: Optional[str] = None):
@@ -117,8 +151,6 @@ def run_image_metamer_generation(image_id, output_name: Optional[str] = None):
         min_value=0.0,
         max_value=1.0,
     )
-
-    BATCH_SIZE = 1
 
     # init model (and feature extractor)
     layer_to_invert = "features.9"  # relu3
