@@ -127,7 +127,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     np.random.seed(seed)
 
     # init model (and feature extractor)
-    layer_to_invert = "features.9"
+    layer_to_invert = "features.9"  # relu3
     class_model = torch.hub.load('pytorch/vision', 'alexnet', pretrained=True)
     fe_model = SingleFeatureExtractor(class_model, layer_to_invert)
     ds = ImageNet()
@@ -182,7 +182,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
 
     # Make the noise input (will use for all the input seeds)
     # the noise scale is typically << the noise mean, so we don't have to worry about negative values.
-    initial_noise = (torch.randn_like(reference_image) * noise_scale + init_noise_mean)
+    initial_noise = (torch.randn_like(reference_image) * 1 / 20 + 0.5)
 
     # Choose the inversion parameters (will run 4x the iterations, reducing the learning rate each time)
     # will be passed to Attacker to generate adv example
@@ -190,24 +190,13 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
         # same simple loss as in the paper
         'custom_loss': inversion_loss_feathers,
         'eps': 100000,  # why this high? this is weird, usually 8/255 or some is used
-        'step_size': initial_step_size,
+        'step_size': 1.0,
         # essentially works like learning rate. halved every 3000 iterations (default: 1.0)
-        'iterations': iterations,  # iterations to generate one adv example
+        'iterations': 1000,  # iterations to generate one adv example
         'targeted': True,
     }
 
-    # set up initial metamer
-    if initial_metamer == "reference":
-        metamer = reference_image.clone().cuda()
-    elif initial_metamer == "noise":
-        # Use same noise for every layer.
-        metamer = torch.clamp(initial_noise, ds.min_value, ds.max_value).cuda()
-    elif initial_metamer == "uniform":
-        metamer = torch.distributions.Uniform(0, 1).sample(reference_image.shape).cuda()
-    elif initial_metamer == "constant":
-        metamer = torch.ones_like(reference_image) * 0.5
-    else:
-        raise ValueError("invalid initial metamer param")
+    metamer = torch.clamp(initial_noise, ds.min_value, ds.max_value).cuda()
 
     reference_representation = reference_activations.contiguous().view(reference_activations.size(0), -1)
 
@@ -249,7 +238,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     # this iteration is the interesting part!
     # it is quite simple and basically improves the adversarial example
     # multiple times using PGD attack until it becomes the metamer
-    for i in range(num_repetitions - 1):
+    for i in range(8 - 1):
         metamer = adv_ex
         synth_kwargs['step_size'] = synth_kwargs['step_size'] / 2  # constrain max L2 norm of grad desc desc
         prediction_activations, adv_ex = model(
@@ -277,6 +266,10 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
             "reference_activations": reference_activations.detach().cpu(),
         }
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    return
+
+    ########################################
 
     prediction_representation = prediction_activations.contiguous().view(prediction_activations.size(0), -1)
 
@@ -345,7 +338,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     pckl_output_dict['rep_orig'] = reference_representation
     pckl_output_dict['sound_orig'] = reference_image.detach().cpu()
 
-    # Just use the name of the loss to save synthkwargs don't save the function
+    # Just use the name of the loss to save synth_kwargs don't save the function
     synth_kwargs['custom_loss'] = loss_func_name
     pckl_output_dict['synth_kwargs'] = synth_kwargs
 
