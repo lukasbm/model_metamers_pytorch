@@ -75,7 +75,6 @@ def generate_original(image_id, model_name, output_name, seed):
 def generate_simple(output_name):
     metamer_generation_simple(
         output_name=output_name,
-        image_id=257,
     )
 
 

@@ -83,7 +83,7 @@ def inversion_loss_feathers(model, inp, targ, normalize_loss=True):
     return loss, None
 
 
-def load_image_257():
+def load_image_257() -> torch.Tensor:
     image_path = "/home/lukas/Documents/uni/feathers_model_metamers_pytorch/assets/full_400_16_class_imagenet_val_images/257_10_dog_n02085782_00031965.JPEG"
     from torchvision.io import ImageReadMode
     import torchvision
@@ -94,11 +94,31 @@ def load_image_257():
         tv.ToDtype(torch.float, scale=True),
     ])
     image = transform(image)
+    assert image.max() <= 1.0
+    image = image.unsqueeze(0).float().contiguous().cuda()
+    return image
+
+
+def load_image_257_2() -> torch.Tensor:
+    image_path = "/home/lukas/Documents/uni/feathers_model_metamers_pytorch/assets/full_400_16_class_imagenet_val_images/257_10_dog_n02085782_00031965.JPEG"
+    from torchvision.io import ImageReadMode
+    import torchvision
+    import torchvision.transforms.v2 as tv
+    image = torchvision.io.read_image(image_path, mode=ImageReadMode.RGB)
+    shorter_side = min(image.shape[-1], image.shape[-2])
+    transform = tv.Compose([
+        tv.CenterCrop(shorter_side),
+        tv.Resize(224, antialias=False),
+        # tv.ToDtype(torch.float, scale=True),
+    ])
+    image = transform(image)
+    image = image.float() / 255
+    assert image.max() <= 1.0
     image = image.unsqueeze(0).contiguous().cuda()
     return image
 
 
-def load_image_257_orig():
+def load_image_257_orig() -> torch.Tensor:
     from PIL import Image
 
     image_path = "/home/lukas/Documents/uni/feathers_model_metamers_pytorch/assets/full_400_16_class_imagenet_val_images/257_10_dog_n02085782_00031965.JPEG"
@@ -122,7 +142,7 @@ def load_image_257_orig():
     return torch.tensor(np.expand_dims(img1, 0)).float().contiguous()
 
 
-def run_image_metamer_generation(image_id, output_name: Optional[str] = None):
+def run_image_metamer_generation(output_name: Optional[str] = None):
     iterations = 1000
     overwrite_pckl = True
     num_repetitions = 8
@@ -146,7 +166,7 @@ def run_image_metamer_generation(image_id, output_name: Optional[str] = None):
     assert isinstance(model, torch.nn.Module), "model is no valid torch module"
     assert type(model) is AttackerModel, "model is no valid robustness attacker model"
 
-    reference_image = load_image_257_orig()  # load_image(image_id)
+    reference_image = load_image_257_2()  # load_image(image_id)
 
     print(reference_image.shape, reference_image.min(), reference_image.max(), reference_image.mean())
 
