@@ -14,7 +14,7 @@ NOTE: Vision only!
 import os
 import pickle
 from pprint import pprint
-from typing import Optional, Literal
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -94,16 +94,13 @@ def inversion_loss_feathers(model, inp, targ, normalize_loss=True):
     return loss, None
 
 
-def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name, seed, overwrite_pckl,
-                                 use_dataset_preproc, initial_step_size, noise_scale, iterations, num_repetitions,
-                                 override_save, model_directory,
-                                 initial_metamer: Literal["noise", "reference", "uniform", "constant"] = "noise",
-                                 output_name: Optional[str] = None, fake_relu: bool = True):
-    """
-    @param fake_relu: disable the usage of fake relu.
-        This would otherwise use simplified gradients to improve optimization.
-        NOTE: remember to exclude fake_relu layers from the models metamer_layers in the respective build_network.py
-    """
+def run_image_metamer_generation(image_id, seed, output_name: Optional[str] = None):
+    iterations = 1000
+    overwrite_pckl = True
+    input_image_func_name = "400_16_class_imagenet_val"
+    num_repetitions = 8
+    model_directory = f"model_analysis_folders/visual_networks/alexnet"
+
     predictions_out_dict = {}
     rep_out_dict = {}
     all_outputs_out_dict = {}
@@ -152,7 +149,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     label_name = image_dict['correct_response']
 
     # Set up the saving folder and make sure that the file doesn't already exist
-    synth_name = input_image_func_name + '_' + loss_func_name + '_RS%d' % seed + '_I%d' % iterations + '_N%d' % num_repetitions
+    synth_name = input_image_func_name + '_RS%d' % seed + '_I%d' % iterations + '_N%d' % num_repetitions
     if output_name is None:
         base_filepath = os.path.join(model_directory, "metamers", synth_name, f"%{image_id}_SOUND_{label_name}") + "/"
     else:
@@ -192,7 +189,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
         'eps': 100000,  # why this high? this is weird, usually 8/255 or some is used
         'step_size': 1.0,
         # essentially works like learning rate. halved every 3000 iterations (default: 1.0)
-        'iterations': 1000,  # iterations to generate one adv example
+        'iterations': iterations,  # iterations to generate one adv example
         'targeted': True,
     }
 
@@ -238,7 +235,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     # this iteration is the interesting part!
     # it is quite simple and basically improves the adversarial example
     # multiple times using PGD attack until it becomes the metamer
-    for i in range(8 - 1):
+    for i in range(num_repetitions - 1):
         metamer = adv_ex
         synth_kwargs['step_size'] = synth_kwargs['step_size'] / 2  # constrain max L2 norm of grad desc desc
         prediction_activations, adv_ex = model(
@@ -339,7 +336,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     pckl_output_dict['sound_orig'] = reference_image.detach().cpu()
 
     # Just use the name of the loss to save synth_kwargs don't save the function
-    synth_kwargs['custom_loss'] = loss_func_name
     pckl_output_dict['synth_kwargs'] = synth_kwargs
 
     with open(pckl_path, 'wb') as handle:
