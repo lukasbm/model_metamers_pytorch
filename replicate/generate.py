@@ -11,26 +11,20 @@ One of the most important files in the repo!
 NOTE: Vision only!
 """
 
-import csv
 import os
 import pickle
-from dataclasses import dataclass
 from pprint import pprint
 from typing import Optional, Literal
 
-import simple_parsing
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torchvision.models.feature_extraction as tv_fe
 from PIL import Image
-from matplotlib import pylab as plt
 
-from analysis_scripts.default_paths import WORDNET_ID_TO_HUMAN_PATH
-from analysis_scripts.helpers_16_choice import force_16_choice
 from analysis_scripts.input_helpers import generate_import_image_functions
 from replicate.attacker import AttackerModel
 from replicate.datasets import ImageNet
-from robustness.tools.distance_measures import *
-from robustness.tools.label_maps import CLASS_DICT
 
 
 class SingleFeatureExtractor(torch.nn.Module):
@@ -141,11 +135,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     assert isinstance(model, torch.nn.Module), "model is no valid torch module"
     assert type(model) is AttackerModel, "model is no valid robustness attacker model"
 
-    # Get the WNID
-    with open(WORDNET_ID_TO_HUMAN_PATH, mode='r') as infile:
-        reader = csv.reader(infile, delimiter='\t')
-        wnid_imagenet_name = {rows[0]: rows[1] for rows in reader}
-
     # Load dataset for metamer generation
     # this loads the image.
     input_image_func = generate_import_image_functions(input_image_func_name, data_format='NCHW')
@@ -161,12 +150,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
 
     # Label name for the 16 way imagenet task
     label_name = image_dict['correct_response']
-
-    # Get the full imagenet keys for printing predictions
-    label_keys = CLASS_DICT['ImageNet'].keys()
-    label_values = CLASS_DICT['ImageNet'].values()
-    label_idx = list(label_keys)[list(label_values).index(wnid_imagenet_name[image_dict['imagenet_category']])]
-    targ = torch.from_numpy(np.array([label_idx])).float()
 
     # Set up the saving folder and make sure that the file doesn't already exist
     synth_name = input_image_func_name + '_' + loss_func_name + '_RS%d' % seed + '_I%d' % iterations + '_N%d' % num_repetitions
@@ -196,9 +179,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
 
     # Get the predicted 16 category label
     pprint([x.shape for x in reference_predictions])
-    reference_16_cat_prediction = [force_16_choice(np.flip(np.argsort(p.ravel(), 0)), CLASS_DICT['ImageNet'])
-                                   for p in reference_predictions]  # p should be an array of shape [1000]
-    print('Orig Image 16 Category Prediction: %s' % reference_16_cat_prediction)
 
     # Make the noise input (will use for all the input seeds)
     # the noise scale is typically << the noise mean, so we don't have to worry about negative values.
@@ -238,7 +218,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
             "reference_activations": reference_activations.detach().cpu(),
             "reference_representation": reference_representation.detach().cpu(),
             "reference_output": reference_output.detach().cpu(),
-            "targ": targ.detach().cpu(),
         }
         pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -322,16 +301,11 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
             synth_predictions.append(reference_output['signal/word_int'][b].detach().cpu().numpy())
 
     # Get the predicted 16 category label
-    synth_16_cat_prediction = [force_16_choice(np.flip(np.argsort(p.ravel(), 0)),
-                                               CLASS_DICT['ImageNet']) for p in synth_predictions]
-    print('Layer %s, Synth Image 16 Category Prediction: %s' % (
-        layer_to_invert, synth_16_cat_prediction))
 
     all_outputs_out_dict[layer_to_invert] = prediction_activations  # includes all activations, not output!
     xadv_dict[layer_to_invert] = adv_ex.detach().cpu()
     all_losses_dict[layer_to_invert] = all_losses
     predicted_labels_out_dict[layer_to_invert] = synth_predictions
-    predicted_16_cat_labels_out_dict[layer_to_invert] = synth_16_cat_prediction
 
     ###############################
     # COMPUTATION DONE ############
@@ -348,7 +322,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     pckl_output_dict['predicted_16_cat_labels_out_dict'] = predicted_16_cat_labels_out_dict
     pckl_output_dict['predictions_out_dict'] = predictions_out_dict
     pckl_output_dict['rep_out_dict'] = rep_out_dict
-    pckl_output_dict['orig_16_cat_prediction'] = reference_16_cat_prediction
     pckl_output_dict['orig_predictions'] = reference_predictions
     # params
     pckl_output_dict['image_dict'] = image_dict  # reference image
@@ -403,19 +376,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
             reference_predictions = reference_output['signal/word_int'][i].detach().cpu().numpy()
             synth_predictions = reference_output['signal/word_int'][i].detach().cpu().numpy()
 
-        # Get the predicted 16 category label (re-evaluating for some reason??)
-        reference_16_cat_prediction = force_16_choice(np.flip(np.argsort(reference_predictions.ravel(), 0)),
-                                                      CLASS_DICT['ImageNet'])
-        synth_16_cat_prediction = force_16_choice(np.flip(np.argsort(synth_predictions.ravel(), 0)),
-                                                  CLASS_DICT['ImageNet'])
-        print('Layer %s, Image %d, Orig Image 16 Category Prediction: %s' % (
-            layer_to_invert, i, reference_16_cat_prediction))
-        print('Layer %s, Image %d, Synth Image 16 Category Prediction: %s' % (
-            layer_to_invert, i, synth_16_cat_prediction))
-
-        # Set synthesis success based on the 16 category labels -- we can later evaluate the 1000 category labels.
-        synth_success = reference_16_cat_prediction == synth_16_cat_prediction
-
         orig_label = np.argmax(reference_predictions)
         synth_label = np.argmax(synth_predictions)
 
@@ -429,9 +389,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
             plt.imshow((np.array(reference_image[i].cpu().numpy())[0, :, :]), interpolation='none', cmap='gray')
         else:
             raise ValueError('Image dimensions are not appropriate for saving. Check dimensions')
-        plt.title('Layer %s, Image %d, Predicted Orig Label "%s" \n Orig Coch' % (
-            layer_to_invert, i,  # CLASS_DICT['ImageNet'][int(targ[i].cpu().numpy())]))
-            CLASS_DICT['ImageNet'][int(orig_label)]))
+        plt.title('Layer %s, Image %d \n Orig Coch' % (layer_to_invert, i,))
 
         # plot adversarial example
         plt.subplot(3, BATCH_SIZE, BATCH_SIZE + i + 1)  # nrows, ncols, index
@@ -441,9 +399,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
             plt.imshow((np.array(adv_ex[i].cpu().numpy())[0, :, :]), interpolation='none', cmap='gray')
         else:
             raise ValueError('Image dimensions are not appropriate for saving. Check dimensions')
-        plt.title('Layer %s, Image %d, Predicted Synth Label "%s" \n Synth Coch' % (
-            layer_to_invert, i,  # CLASS_DICT['ImageNet'][int(targ[i].cpu().numpy())]))
-            CLASS_DICT['ImageNet'][int(synth_label)]))
+        plt.title('Layer %s, Image %d" \n Synth Coch' % (layer_to_invert, i))
 
         # scatter plot for current layer (current orig vs current synth)
         plt.subplot(3, BATCH_SIZE, BATCH_SIZE * 2 + i + 1)  # nrows, ncols, index
@@ -451,33 +407,16 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
             np.ravel(np.array(reference_activations.cpu())[i, :]),
             np.ravel(prediction_activations.cpu().detach().numpy()[i, :])
         )
-        plt.title('Layer %s, Image %d, Label "%s" \n Optimization' % (
-            layer_to_invert, i, CLASS_DICT['ImageNet'][int(targ[i].cpu().numpy())]))
+        plt.title('Layer %s, Image %d \n Optimization' % (layer_to_invert, i))
         plt.xlabel('Orig Activations (%s)' % layer_to_invert)
         plt.ylabel('Synth Activations (%s)' % layer_to_invert)
 
         fig.savefig(layer_filepath + '_image_optimization.png')
 
-        # print the information also in the console
-        try:
-            print('Layer %s, Image %d, Label "%s", Prediction Orig "%s", Prediction Synth "%s"' % (
-                layer_to_invert, i,
-                CLASS_DICT['ImageNet'][int(targ[i].cpu().numpy())],
-                CLASS_DICT['ImageNet'][int(np.argmax(reference_output[i].detach().cpu().numpy()))],
-                CLASS_DICT['ImageNet'][int(np.argmax(prediction_output[i].detach().cpu().numpy()))]))
-        except KeyError:
-            print('Layer %s, Image %d, Label "%s", Prediction Orig "%s", Prediction Synth "%s"' % (
-                layer_to_invert, i,
-                CLASS_DICT['ImageNet'][int(targ[i].cpu().numpy())],
-                CLASS_DICT['ImageNet'][
-                    int(np.argmax(reference_output['signal/word_int'][i].detach().cpu().numpy()))],
-                CLASS_DICT['ImageNet'][
-                    int(np.argmax(prediction_output['signal/word_int'][i].detach().cpu().numpy()))]))
-
         plt.close()
 
         # Only save the individual generated image if the layer optimization succeeded
-        if synth_success or override_save:
+        if override_save:
             if reference_image[i].shape[0] == 3:
                 synth_image = Image.fromarray(
                     (np.rollaxis(np.array(adv_ex[i].cpu().numpy()), 0, 3) * scale_image_save_PIL_factor).astype(
@@ -486,45 +425,3 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
                 synth_image = Image.fromarray(
                     (np.array(adv_ex[i].cpu().numpy())[0] * scale_image_save_PIL_factor).astype('uint8'))
             synth_image.save(layer_filepath + '_synth.png', 'PNG')
-
-
-@dataclass(slots=True)
-class MetamerGeneratorArgs:
-    model_directory: str = "model_analysis_folders/visual_networks/alexnet"  # The directory with the location of the `build_network.py` file. Folder structure for saving metamers will be created in this directory. If not specified, assume this script is located in the same directory as the build_network.py file.
-    sidx: int = 0  # index into the sound list for the time_average sound, range 0 to 400
-    loss_func_name: str = "inversion_loss_layer"  # loss function to use for the synthesis
-    input_image_func_name: str = "400_16_class_imagenet_val"  # function to use for grabbing the input image sources
-    random_seed: int = 0  # random seed to use for synthesis
-    iterations: int = 3000  # number of iterations in robustness synthesis kwargs (when make_adv=True)
-    num_repetitions: int = 8  # number of repetitions to run the robustness synthesis, each time decreasing the learning rate by half
-    override_save: bool = False  # set to true to save, even if the optimization does not succeed
-    overwrite_pckl: bool = True  # set to true to overwrite the saved pckl file, if false then exits out if the file already exists
-    use_dataset_preproc: bool = False  # preprocess the dataset (by default just something like tv.ToTensor)
-    noise_scale: float = 1 / 20  # multiply the noise by this value for the synthesis initialization (noise init)
-    step_size: float = 1.0  # Initial step size for the metamer generation
-    intial_metamer: Literal["noise", "reference", "uniform", "constant"] = "noise"  # initial metamer value
-
-
-def main():
-    args: MetamerGeneratorArgs = simple_parsing.parse(MetamerGeneratorArgs)
-    pprint(args)
-
-    run_image_metamer_generation(
-        image_id=args.sidx,
-        loss_func_name=args.loss_func_name,
-        input_image_func_name=args.input_image_func_name,
-        seed=args.random_seed,
-        overwrite_pckl=args.overwrite_pckl,
-        use_dataset_preproc=args.use_dataset_preproc,
-        initial_step_size=args.step_size,
-        noise_scale=args.noise_scale,
-        iterations=args.iterations,
-        num_repetitions=args.num_repetitions,
-        override_save=args.override_save,
-        model_directory=args.model_directory,
-        initial_metamer=args.intial_metamer
-    )
-
-
-if __name__ == '__main__':
-    main()
