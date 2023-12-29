@@ -147,7 +147,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     class_model = class_model.cuda().eval()
 
     with torch.no_grad():
-        reference_activations, reference_image = model(reference_image.cuda())
+        reference_activations, reference_image = model(reference_image.cuda())  # attention: this does preprocessing
         reference_output = class_model(reference_image.cuda())
 
     # Calculate human-readable labels and 16 category labels for the original image
@@ -192,6 +192,17 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
 
     reference_representation = reference_activations.contiguous().view(reference_activations.size(0), -1)
 
+    with open(os.path.join(os.path.dirname(pckl_path), "initial_values.pckl"), 'wb') as handle:
+        data = {
+            "metamer": metamer.detach().cpu(),
+            "reference_image": reference_image.detach().cpu(),
+            "reference_activations": reference_activations.detach().cpu(),
+            "reference_representation": reference_representation.detach().cpu(),
+            "reference_output": reference_output.detach().cpu(),
+            "targ": targ.detach().cpu(),
+        }
+        pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
     # Do the optimization, and save the losses occasionally
     all_losses = {}
 
@@ -229,7 +240,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
             make_adv=True,
             **synth_kwargs,
         )  # Image inversion using PGD
-        metamer = adv_ex
         prediction_output = class_model(adv_ex.clone())
 
         this_loss, _ = calc_loss(model, adv_ex, reference_representation.clone(),
@@ -240,6 +250,15 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
 
     print("all iteration steps completed!")
     print("losses:", all_losses)
+
+    with open(os.path.join(os.path.dirname(pckl_path), "simple_output.pckl"), 'wb') as handle:
+        data = {
+            "x_adv": adv_ex.detach().cpu(),
+            "reference_image": reference_image.detach().cpu(),
+            "activations": prediction_activations.detach().cpu(),
+            "reference_activations": reference_activations.detach().cpu(),
+        }
+        pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     prediction_representation = prediction_activations.contiguous().view(prediction_activations.size(0), -1)
 
@@ -306,11 +325,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     pckl_output_dict['all_outputs_orig'] = reference_activations
 
     # clean up and save reference output for later evaluation
-    if type(reference_output) is dict:
-        for dict_key, dict_value in reference_output.items():
-            reference_output[dict_key] = dict_value.detach().cpu()
-    else:
-        reference_output = reference_output.detach().cpu()
+    reference_output = reference_output.detach().cpu()
     pckl_output_dict['predictions_orig'] = reference_output
 
     if reference_representation is not None:
@@ -335,8 +350,6 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
     layer_filepath = base_filepath + f"layer_{layer_to_invert}"
 
     # collect all relevant variables
-
-    prediction_representation = rep_out_dict[layer_to_invert]
     prediction_output = predictions_out_dict[layer_to_invert]
     adv_ex = xadv_dict[layer_to_invert]
     prediction_activations = all_outputs_out_dict[layer_to_invert]

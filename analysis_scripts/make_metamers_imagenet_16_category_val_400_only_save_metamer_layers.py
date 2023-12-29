@@ -203,7 +203,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
         else:
             raise ValueError("invalid initial metamer param")
 
-        inverted_reference_representation = reference_activations[layer_to_invert].contiguous().view(
+        reference_representation = reference_activations[layer_to_invert].contiguous().view(
             reference_activations[layer_to_invert].size(0), -1)
 
         # Do the optimization, and save the losses occasionally
@@ -212,7 +212,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
         # Note for loss calculation: it takes in the target representation but only the prediction input
         # Internally it calculates the output and its according representation.
         # This causes an unnecessary forward pass of the entire model as we do another one below to optimize ...
-        this_loss, _ = calc_loss(model, metamer, inverted_reference_representation.clone(), synth_kwargs['custom_loss'])
+        this_loss, _ = calc_loss(model, metamer, reference_representation.clone(), synth_kwargs['custom_loss'])
         all_losses[0] = this_loss.detach().cpu()
         print('Step %d | Layer %s | Loss %f' % (0, layer_to_invert, this_loss))
 
@@ -226,7 +226,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
 
         (prediction_output, prediction_representation, prediction_activations), adv_ex = model(
             metamer,
-            inverted_reference_representation.clone(),
+            reference_representation.clone(),
             make_adv=True,
             **synth_kwargs,
             with_latent=True,
@@ -235,7 +235,7 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
 
         # FIXME: why is the adversarial example inferenced again in the loss?
         #   AttackerModel.Forward already does it (prediction_activations)
-        this_loss, _ = calc_loss(model, adv_ex, inverted_reference_representation.clone(), synth_kwargs['custom_loss'])
+        this_loss, _ = calc_loss(model, adv_ex, reference_representation.clone(), synth_kwargs['custom_loss'])
         all_losses[synth_kwargs['iterations']] = this_loss.detach().cpu()
         print('Step %d | Layer %s | Loss %f' % (synth_kwargs['iterations'], layer_to_invert, this_loss))
 
@@ -263,13 +263,13 @@ def run_image_metamer_generation(image_id, loss_func_name, input_image_func_name
             synth_kwargs['step_size'] = synth_kwargs['step_size'] / 2  # constrain max L2 norm of grad desc desc
             (prediction_output, prediction_representation, prediction_activations), adv_ex = model(
                 metamer,
-                inverted_reference_representation.clone(),
+                reference_representation.clone(),
                 make_adv=True,
                 **synth_kwargs,
                 with_latent=True,
                 fake_relu=fake_relu,
             )  # Image inversion using PGD
-            this_loss, _ = calc_loss(model, adv_ex, inverted_reference_representation.clone(),
+            this_loss, _ = calc_loss(model, adv_ex, reference_representation.clone(),
                                      synth_kwargs['custom_loss'])
             all_losses[(i + 2) * synth_kwargs['iterations']] = this_loss.detach().cpu()
             print('Step %d | Layer %s | Loss %f' % (synth_kwargs['iterations'] * (i + 2), layer_to_invert, this_loss))
