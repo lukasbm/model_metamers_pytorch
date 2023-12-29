@@ -19,7 +19,6 @@ import numpy as np
 import torch
 import torchvision.models.feature_extraction as tv_fe
 
-from analysis_scripts.input_helpers import generate_import_image_functions
 from replicate.attacker import AttackerModel
 from replicate.datasets import ImageNet
 
@@ -84,18 +83,6 @@ def inversion_loss_feathers(model, inp, targ, normalize_loss=True):
     return loss, None
 
 
-def load_image(image_id):
-    # Load dataset for metamer generation
-    # this loads the image.
-    input_image_func = generate_import_image_functions("400_16_class_imagenet_val", data_format='NCHW')
-    image_dict = input_image_func(image_id)  # load the image from the reduced dataset (400 images, see /assets)
-    image_dict['image_orig'] = image_dict['image']
-    # Preprocess to be in the format for pytorch
-    if image_dict['max_value_image_set'] == 255:
-        image_dict['image'] = image_dict['image'] / 255.
-    return torch.tensor(np.expand_dims(image_dict['image'], 0)).float().contiguous()
-
-
 def load_image_257():
     image_path = "/home/lukas/Documents/uni/feathers_model_metamers_pytorch/assets/full_400_16_class_imagenet_val_images/257_10_dog_n02085782_00031965.JPEG"
     from torchvision.io import ImageReadMode
@@ -111,7 +98,7 @@ def load_image_257():
     return image
 
 
-def load_image_257_2():
+def load_image_257_orig():
     from PIL import Image
 
     image_path = "/home/lukas/Documents/uni/feathers_model_metamers_pytorch/assets/full_400_16_class_imagenet_val_images/257_10_dog_n02085782_00031965.JPEG"
@@ -125,16 +112,14 @@ def load_image_257_2():
     top = (height - smallest_dim) // 2
     bottom = (height + smallest_dim) // 2
 
-    im_shape = 320
+    im_shape = 224
     img_pil = img_pil.crop((left, top, right, bottom))
     img_pil = img_pil.resize((im_shape, im_shape))
     img_pil.load()
     img1 = np.asarray(img_pil, dtype="float32")
     img1 = np.rollaxis(np.array(img1), 2, 0)
     img1 = img1 / 255
-    image = torch.tensor(np.expand_dims(img1, 0)).float().contiguous()
-    print(image.shape)
-    assert image.shape == (1, 3, im_shape, im_shape)
+    return torch.tensor(np.expand_dims(img1, 0)).float().contiguous()
 
 
 def run_image_metamer_generation(image_id, output_name: Optional[str] = None):
@@ -161,7 +146,7 @@ def run_image_metamer_generation(image_id, output_name: Optional[str] = None):
     assert isinstance(model, torch.nn.Module), "model is no valid torch module"
     assert type(model) is AttackerModel, "model is no valid robustness attacker model"
 
-    reference_image = load_image(image_id)
+    reference_image = load_image_257_orig()  # load_image(image_id)
 
     print(reference_image.shape, reference_image.min(), reference_image.max(), reference_image.mean())
 
