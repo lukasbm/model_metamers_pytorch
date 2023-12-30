@@ -105,17 +105,35 @@ def load_image_257_2() -> torch.Tensor:
     import torchvision
     import torchvision.transforms.v2 as tv
     image = torchvision.io.read_image(image_path, mode=ImageReadMode.RGB)
-    shorter_side = min(image.shape[-1], image.shape[-2])
     transform = tv.Compose([
-        tv.CenterCrop(shorter_side),
-        tv.Resize(224, antialias=False),
+        tv.CenterCrop(min(image.shape[-1], image.shape[-2])),
+        tv.Resize(224),
         # tv.ToDtype(torch.float, scale=True),
     ])
     image = transform(image)
     image = image.float() / 255
     assert image.max() <= 1.0
-    image = image.unsqueeze(0).contiguous().cuda()
+    image = image.unsqueeze(0).contiguous()
     return image
+
+
+def load_image_257_3() -> torch.Tensor:
+    import torchvision.transforms.v2 as tv
+    from PIL import Image
+
+    image_path = "/home/lukas/Documents/uni/feathers_model_metamers_pytorch/assets/full_400_16_class_imagenet_val_images/257_10_dog_n02085782_00031965.JPEG"
+
+    img_pil = Image.open(image_path)
+    im_shape = 224
+    transformations = tv.Compose([
+        tv.CenterCrop(min(img_pil.size)),  # Crop the image to a square
+        tv.Resize((im_shape, im_shape), antialias=True),  # Resize the image to 224x224
+        tv.PILToTensor(),
+    ])
+    img_tensor = transformations(img_pil)
+    img_tensor = img_tensor / 255.0
+    img_tensor = img_tensor.unsqueeze(0)
+    return img_tensor.contiguous()
 
 
 def load_image_257_orig() -> torch.Tensor:
@@ -166,7 +184,8 @@ def run_image_metamer_generation(output_name: Optional[str] = None):
     assert isinstance(model, torch.nn.Module), "model is no valid torch module"
     assert type(model) is AttackerModel, "model is no valid robustness attacker model"
 
-    reference_image = load_image_257_2()  # load_image(image_id)
+    # LOAD REFERENCE IMAGE
+    reference_image = load_image_257_3()  # load_image(image_id)
 
     print(reference_image.shape, reference_image.min(), reference_image.max(), reference_image.mean())
 
