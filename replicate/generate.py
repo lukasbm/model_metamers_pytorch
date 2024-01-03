@@ -185,7 +185,7 @@ def run_image_metamer_generation(output_name: Optional[str] = None):
     assert type(model) is AttackerModel, "model is no valid robustness attacker model"
 
     # LOAD REFERENCE IMAGE
-    reference_image = load_image_257_3()  # load_image(image_id)
+    reference_image = load_image_257_orig()  # load_image(image_id)
 
     print(reference_image.shape, reference_image.min(), reference_image.max(), reference_image.mean())
 
@@ -247,13 +247,13 @@ def run_image_metamer_generation(output_name: Optional[str] = None):
 
     print('Step %d | Layer %s | Loss %f' % (0, layer_to_invert, this_loss))
 
-    prediction_activations, adv_ex = model(
+    prediction_activations, metamer = model(
         metamer,
         reference_representation.clone(),
         make_adv=True,
         **synth_kwargs,
     )
-    this_loss, _ = calc_loss(model, adv_ex, reference_representation.clone(), synth_kwargs['custom_loss'])
+    this_loss, _ = calc_loss(model, metamer, reference_representation.clone(), synth_kwargs['custom_loss'])
     all_losses[synth_kwargs['iterations']] = this_loss.detach().cpu()
 
     print('Step %d | Layer %s | Loss %f' % (synth_kwargs['iterations'], layer_to_invert, this_loss))
@@ -262,15 +262,14 @@ def run_image_metamer_generation(output_name: Optional[str] = None):
     # it is quite simple and basically improves the adversarial example
     # multiple times using PGD attack until it becomes the metamer
     for i in range(num_repetitions - 1):
-        metamer = adv_ex
         synth_kwargs['step_size'] = synth_kwargs['step_size'] / 2  # constrain max L2 norm of grad desc desc
-        prediction_activations, adv_ex = model(
+        prediction_activations, metamer = model(
             metamer,
             reference_representation.clone(),
             make_adv=True,
             **synth_kwargs,
         )  # Image inversion using PGD
-        this_loss, _ = calc_loss(model, adv_ex, reference_representation.clone(),
+        this_loss, _ = calc_loss(model, metamer, reference_representation.clone(),
                                  synth_kwargs['custom_loss'])
         all_losses[(i + 2) * synth_kwargs['iterations']] = this_loss.detach().cpu()
 
@@ -281,7 +280,7 @@ def run_image_metamer_generation(output_name: Optional[str] = None):
 
     with open(os.path.join(os.path.dirname(pckl_path), "simple_output.pckl"), 'wb') as handle:
         data = {
-            "x_adv": adv_ex.detach().cpu(),
+            "x_adv": metamer.detach().cpu(),
             "reference_image": reference_image.detach().cpu(),
             "activations": prediction_activations.detach().cpu(),
             "reference_activations": reference_activations.detach().cpu(),
