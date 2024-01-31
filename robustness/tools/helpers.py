@@ -11,10 +11,10 @@ from . import constants
 def has_attr(obj, k):
     """Checks both that obj.k exists and is not equal to None"""
     try:
-        return (getattr(obj, k) is not None)
-    except KeyError as e:
+        return getattr(obj, k) is not None
+    except KeyError:
         return False
-    except AttributeError as e:
+    except AttributeError:
         return False
 
 
@@ -139,7 +139,7 @@ class InputNormalize(ch.nn.Module):
     """
 
     def __init__(self, new_mean, new_std, min_value, max_value):
-        super(InputNormalize, self).__init__()
+        super().__init__()
         new_std = new_std[..., None, None]
         new_mean = new_mean[..., None, None]
 
